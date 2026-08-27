@@ -6,10 +6,15 @@ An experiment designed at identifying original factors for asset pricing
 factor_originality/
 │
 ├── modules/
-│   ├── data_retrieval.py
+│   └── data_retrieval/
+│   │   ├── data_retrieval.py
+│   │   ├── prices.py
+│   │   ├── fundamentals.py
+│   │   ├── benchmark.py
+│   │   └── shares.py
+│   │
 │   ├── preprocessing.py
 │   ├── statistical_measures.py
-│   │
 │   └── factors/
 │       └── ...
 │
