@@ -1,0 +1,457 @@
+Ticker,Name
+MMM,3M Co.
+ABT,Abbott Laboratories
+ABBV,"AbbVie, Inc."
+ACN,Accenture PLC ClassÂ A
+ADBE,"Adobe Systems, Inc.(a)"
+AAP,"Advance Auto Parts, Inc."
+AMD,"Advanced Micro Devices,"
+AES,AES Corp.
+AFL,"Aflac, Inc."
+A,"Agilent Technologies, Inc."
+APD,"Air Products & Chemicals, Inc."
+AKAM,"Akamai Technologies, Inc.(a)"
+ALK,"Alaska Air Group, Inc."
+ALB,Albemarle Corp.
+ARE,"Alexandria Real Estate Equities, Inc. REIT"
+ALGN,"Align Technology, Inc.(a)"
+ALLE,Allegion PLC
+BFH,Bread Financial Holdings
+LNT,Alliant Energy Corp.
+ALL,Allstate Corp.
+GOOG,"Alphabet, Inc. ClassÂ A(a)"
+GOOG,"Alphabet, Inc. Class C(a)"
+MO,"Altria Group, Inc."
+AMZN,"Amazon.com, Inc.(a)"
+AMCR,Amcor PLC(a)
+AEE,Ameren Corp.
+AAL,"American Airlines Group, Inc."
+AEP,"American Electric Power Co., Inc."
+AXP,American Express Co.
+AIG,"American International Group, Inc."
+AMT,American Tower Corp. REIT
+AWK,"American Water Works Co., Inc."
+AMP,"Ameriprise Financial, Inc."
+COR,Cencora
+AME,"AMETEK, Inc."
+AMGN,"Amgen, Inc."
+APH,Amphenol Corp. ClassÂ A
+ADI,"Analog Devices, Inc."
+ELV,Elevance Health
+AOS,AO Smith Corp.
+AON,Aon PLC
+AIV,Apartment InvestmentÂ & Management Co. ClassÂ A REIT
+AAPL,"Apple, Inc."
+AMAT,"Applied Materials, Inc."
+APTV,Aptiv PLC
+ADM,Archer-Daniels-Midland Co.
+ANET,"Arista Networks, Inc.(a)"
+AJG,Arthur J Gallagher & Co.
+AIZ,"Assurant, Inc."
+T,"AT&T, Inc."
+ATO,Atmos Energy Corp.
+ADSK,"Autodesk, Inc.(a)"
+ADP,"Automatic Data Processing, Inc."
+AZO,"AutoZone, Inc.(a)"
+AVB,"AvalonBay Communities, Inc. REIT"
+AVY,Avery Dennison Corp.
+BKR,Baker Hughes a GE Co.
+BALL,Ball Corp.
+BAC,Bank of America Corp.
+BK,Bank of New York Mellon Corp.
+BAX,"Baxter International, Inc."
+BDX,Becton Dickinson and Co.
+BRK-B,"Berkshire Hathaway, Inc."
+BBY,"Best Buy Co., Inc."
+BIIB,"Biogen, Inc.(a)"
+BLK,"BlackRock, Inc."
+BA,Boeing Co.
+BKNG,"Booking Holdings, Inc.(a)"
+BWA,"BorgWarner, Inc."
+BXP,"Boston Properties, Inc. REIT"
+BSX,Boston Scientific Corp.(a)
+BMY,Bristol-Myers Squibb Co.
+AVGO,"Broadcom, Inc."
+BR,"Broadridge Financial Solutions, Inc."
+BF-B,Brown-Forman Corp. ClassÂ B
+CHRW,"C.H. Robinson Worldwide, Inc."
+CDNS,"Cadence Design Systems,"
+CPB,Campbell Soup Co.
+COF,Capital One Financial Corp.
+CPRI,"Capri Holdings, Ltd.(a)"
+CAH,"Cardinal Health, Inc."
+KMX,"CarMax, Inc.(a)"
+CCL,Carnival Corp.
+CAT,"Caterpillar, Inc."
+CBOE,"Cboe Global Markets, Inc."
+CBRE,"CBRE Group, Inc. ClassÂ A(a)"
+CDW,CDW Corp.
+CE,Celanese Corp.
+CNC,Centene Corp.(a)
+CNP,"CenterPoint Energy, Inc."
+LUMN,Lumen Technologies
+CF,"CF Industries Holdings, Inc."
+SCHW,Charles Schwab Corp.
+CHTR,"Charter Communications, Inc. ClassÂ A(a)"
+CVX,Chevron Corp.
+CMG,"Chipotle Mexican Grill, Inc.(a)"
+CB,"Chubb, Ltd."
+CHD,"Church & Dwight Co., Inc."
+CI,Cigna Corp.(a)
+CINF,Cincinnati Financial Corp.
+CTAS,Cintas Corp.
+CSCO,"Cisco Systems, Inc."
+C,"Citigroup, Inc."
+CFG,"Citizens Financial Group, Inc."
+CLX,Clorox Co.
+CME,"CME Group, Inc."
+CMS,CMS Energy Corp.
+KO,Coca-Cola Co.
+CTSH,Cognizant Technology Solutions Corp. ClassÂ A
+CL,Colgate-Palmolive Co.
+CMCSA,Comcast Corp. Class A
+CAG,"Conagra Brands, Inc."
+COP,ConocoPhillips
+ED,"Consolidated Edison, Inc."
+STZ,"Constellation Brands, Inc. ClassÂ A"
+COO,"Cooper Cos., Inc."
+CPRT,"Copart, Inc.(a)"
+GLW,"Corning, Inc."
+CTVA,"Corteva, Inc.(a)"
+COST,Costco Wholesale Corp.
+COTY,"Coty, Inc. Class A"
+CCI,Crown Castle International Corp. REIT
+CSX,CSX Corp.
+CMI,"Cummins, Inc."
+CVS,CVS Health Corp.
+DHI,"D.R. Horton, Inc."
+DHR,Danaher Corp.
+DRI,"Darden Restaurants, Inc."
+DVA,"DaVita, Inc.(a)"
+DE,Deere & Co.
+DAL,"Delta Air Lines, Inc."
+XRAY,"DENTSPLY SIRONA, Inc."
+DVN,Devon Energy Corp.
+FANG,"Diamondback Energy, Inc."
+DLR,"Digital Realty Trust, Inc. REIT"
+DG,Dollar General Corp.
+DLTR,"Dollar Tree, Inc.(a)"
+D,"Dominion Energy, Inc."
+DOV,Dover Corp.
+DOW,"Dow, Inc.(a)"
+DTE,DTE Energy Co.
+DUK,Duke Energy Corp.
+DD,"DuPont de Nemours, Inc."
+DXC,DXC Technology Co.
+EMN,Eastman Chemical Co.
+ETN,Eaton Corp. PLC
+EBAY,"eBay, Inc."
+ECL,"Ecolab, Inc."
+EIX,Edison International
+EW,Edwards Lifesciences Corp.(a)
+EA,"Electronic Arts, Inc.(a)"
+LLY,Eli LillyÂ & Co.
+EMR,Emerson Electric Co.
+ETR,Entergy Corp.
+EOG,"EOG Resources, Inc."
+EFX,"Equifax, Inc."
+EQIX,"Equinix, Inc. REIT"
+EQR,Equity Residential REIT
+ESS,"Essex Property Trust, Inc. REIT"
+EL,"Estee Lauder Cos., Inc. ClassÂ A"
+EG,"Everest Re Group, Ltd."
+EVRG,"Evergy, Inc."
+ES,Eversource Energy
+EXC,Exelon Corp.
+EXPE,"Expedia Group, Inc."
+EXPD,"Expeditors International of Washington, Inc."
+EXR,"Extra Space Storage, Inc. REIT"
+XOM,Exxon Mobil Corp.
+FFIV,"F5 Networks, Inc.(a)"
+META,"Facebook, Inc. ClassÂ A(a)"
+FAST,Fastenal Co.
+FRT,Federal Realty Investment Trust REIT
+FDX,FedEx Corp.
+FIS,"Fidelity National Information Services, Inc."
+FITB,Fifth Third Bancorp
+FE,FirstEnergy Corp.
+FISV,"Fiserv, Inc.(a)"
+CPAY,Corpay
+FLS,Flowserve Corp.
+FMC,FMC Corp.
+F,Ford Motor Co.
+FTNT,"Fortinet, Inc.(a)"
+FTV,Fortive Corp.
+FBIN,"Fortune Brands HomeÂ & Security, Inc."
+FOX,Fox Corp. ClassÂ A
+FOX,Fox Corp. ClassÂ B(a)
+BEN,"Franklin Resources, Inc."
+FCX,"Freeport-McMoRan, Inc."
+GAP,"Gap, Inc."
+GRMN,"Garmin, Ltd."
+IT,"Gartner, Inc.(a)"
+GD,General Dynamics Corp.
+GE,General Electric Co.
+GIS,"General Mills, Inc."
+GM,General Motors Co.
+GPC,Genuine Parts Co.
+GILD,"Gilead Sciences, Inc."
+GPN,"Global Payments, Inc."
+GL,"Globe Life, Inc."
+GS,"Goldman Sachs Group, Inc."
+HRB,"H&R Block, Inc."
+HAL,Halliburton Co.
+HOG,"Harley-Davidson, Inc."
+HIG,"Hartford Financial Services Group, Inc."
+HAS,"Hasbro, Inc."
+HCA,"HCA Healthcare, Inc."
+DOC,"Healthpeak Properties, Inc. REIT"
+HP,"HelmerichÂ & Payne, Inc."
+HSIC,"Henry Schein, Inc.(a)"
+HSY,Hershey Co.
+HPE,Hewlett Packard Enterprise Co.
+HLT,"Hilton Worldwide Holdings, Inc."
+HD,"Home Depot, Inc."
+HON,"Honeywell International, Inc."
+HRL,Hormel Foods Corp.
+HST,"Host HotelsÂ & Resorts, Inc. REIT"
+HWM,"Howmet Aerospace, Inc."
+HPQ,"HP, Inc."
+HUM,"Humana, Inc."
+HBAN,"Huntington Bancshares, Inc."
+HII,"Huntington Ingalls Industries, Inc."
+IEX,IDEX Corp.
+IDXX,"IDEXX Laboratories, Inc.(a)"
+ITW,"Illinois Tool Works, Inc."
+ILMN,"Illumina, Inc.(a)"
+INCY,Incyte Corp.(a)
+IR,"Ingersoll Rand, Inc.(a)"
+INTC,Intel Corp.
+ICE,"Intercontinental Exchange,"
+IBM,International Business Machines Corp.
+IFF,"International FlavorsÂ & Fragrances, Inc."
+IP,International Paper Co.
+INTU,"Intuit, Inc."
+ISRG,"Intuitive Surgical, Inc.(a)"
+IVZ,"Invesco, Ltd."
+IPGP,IPG Photonics Corp.(a)
+IQV,"IQVIA Holdings, Inc.(a)"
+IRM,"Iron Mountain, Inc. REIT"
+SJM,J.M. Smucker Co.
+JKHY,"Jack HenryÂ & Associates, Inc."
+J,"Jacobs Engineering Group, Inc."
+JBHT,"JB Hunt Transport Services, Inc."
+JNJ,JohnsonÂ & Johnson
+JCI,Johnson Controls International PLC
+JPM,JPMorgan ChaseÂ & Co.
+KEY,KeyCorp
+KEYS,"Keysight Technologies, Inc.(a)"
+KMB,Kimberly-Clark Corp.
+KIM,Kimco Realty Corp. REIT
+KMI,"Kinder Morgan, Inc."
+KLAC,KLA Corp.
+KSS,Kohlâs Corp.
+KHC,Kraft Heinz Co.
+KR,Kroger Co.
+LHX,"L3Harris Technologies, Inc."
+LH,Laboratory Corp. of America Holdings(a)
+LRCX,Lam Research Corp.
+LW,"Lamb Weston Holdings, Inc."
+LVS,Las Vegas Sands Corp.
+LEG,"LeggettÂ & Platt, Inc."
+LDOS,"Leidos Holdings, Inc."
+LEN,Lennar Corp. ClassÂ A
+LNC,Lincoln National Corp.
+LIN,Linde PLC
+LYV,"Live Nation Entertainment,"
+LKQ,LKQ Corp.(a)
+LMT,Lockheed Martin Corp.
+L,Loews Corp.
+LOW,"Loweâs Cos., Inc."
+LYB,LyondellBasell Industries NV ClassÂ A
+MTB,M&T Bank Corp.
+M,"Macyâs, Inc."
+MPC,Marathon Petroleum Corp.
+MKTX,"MarketAxess Holdings, Inc."
+MAR,"Marriott International, Inc. ClassÂ A"
+MRSH,"MarshÂ & McLennan Cos., Inc."
+MLM,"Martin Marietta Materials, Inc."
+MAS,Masco Corp.
+MA,"Mastercard, Inc. ClassÂ A"
+MKC,"McCormickÂ & Co., Inc."
+MCD,McDonaldâs Corp.
+MCK,McKesson Corp.
+MDT,Medtronic PLC
+MRK,"MerckÂ & Co., Inc."
+MET,"MetLife, Inc."
+MTD,"Mettler-Toledo International, Inc.(a)"
+MGM,MGM Resorts International
+MCHP,"Microchip Technology, Inc."
+MU,"Micron Technology, Inc.(a)"
+MSFT,Microsoft Corp.
+MAA,"Mid-AmericaÂ Apartment Communities, Inc. REIT"
+MHK,"Mohawk Industries, Inc.(a)"
+TAP,Molson Coors Brewing Co. ClassÂ B
+MDLZ,"Mondelez International, Inc. ClassÂ A"
+MNST,Monster Beverage Corp.(a)
+MCO,Moodyâs Corp.
+MS,Morgan Stanley
+MOS,Mosaic Co.
+MSI,"Motorola Solutions, Inc."
+MSCI,"MSCI, Inc."
+NDAQ,"Nasdaq, Inc."
+NOV,"National Oilwell Varco, Inc."
+NTAP,"NetApp, Inc."
+NFLX,"Netflix, Inc.(a)"
+NEM,Newmont Corp.
+NWS,News Corp. ClassÂ A
+NWS,News Corp. ClassÂ B
+NEE,"NextEra Energy, Inc."
+NKE,"NIKE, Inc. ClassÂ B"
+NI,"NiSource, Inc."
+NSC,Norfolk Southern Corp.
+NTRS,Northern Trust Corp.
+NOC,Northrop Grumman Corp.
+GEN,Gen Digital
+NCLH,"Norwegian Cruise Line Holdings, Ltd.(a)"
+NRG,"NRG Energy, Inc."
+NUE,Nucor Corp.
+NVDA,NVIDIA Corp.
+NVR,"NVR, Inc.(a)"
+ORLY,"O'Reilly Automotive, Inc.(a)"
+OXY,Occidental Petroleum Corp.
+ODFL,"Old Dominion Freight Line, Inc."
+OMC,"Omnicom Group, Inc."
+OKE,"ONEOK, Inc."
+ORCL,Oracle Corp.
+PCAR,"PACCAR, Inc."
+PKG,Packaging Corp. of America
+PH,Parker-Hannifin Corp.
+PAYX,"Paychex, Inc."
+PAYC,"Paycom Software, Inc.(a)"
+PYPL,"PayPal Holdings, Inc.(a)"
+PNR,Pentair PLC
+PEP,"PepsiCo, Inc."
+PRGO,Perrigo Co. PLC
+PFE,"Pfizer, Inc."
+PM,"Philip Morris International, Inc."
+PSX,Phillips 66
+PNW,Pinnacle West Capital Corp.
+PNC,"PNC Financial Services Group, Inc."
+PPG,"PPG Industries, Inc."
+PPL,PPL Corp.
+PFG,"Principal Financial Group, Inc."
+PG,ProcterÂ & Gamble Co.
+PGR,Progressive Corp.
+PLD,"Prologis, Inc. REIT"
+PRU,"Prudential Financial, Inc."
+PEG,"Public Service Enterprise Group, Inc."
+PSA,Public Storage REIT
+PHM,"PulteGroup, Inc."
+PVH,PVH Corp.
+QRVO,"Qorvo, Inc.(a)"
+QCOM,"QUALCOMM, Inc."
+PWR,"Quanta Services, Inc."
+DGX,"Quest Diagnostics, Inc."
+RL,Ralph Lauren Corp.
+RJF,"Raymond James Financial, Inc."
+RTX,Raytheon Co.
+O,Realty Income Corp. REIT
+REG,Regency Centers Corp. REIT
+REGN,"Regeneron Pharmaceuticals, Inc.(a)"
+RF,Regions Financial Corp.
+RSG,"Republic Services, Inc."
+RMD,"ResMed, Inc."
+RHI,"Robert Half International, Inc."
+ROK,"Rockwell Automation, Inc."
+ROL,"Rollins, Inc."
+ROP,"Roper Technologies, Inc."
+ROST,"Ross Stores, Inc."
+RCL,"Royal Caribbean Cruises, Ltd."
+SPGI,"S&P Global, Inc."
+CRM,"salesforce.com, Inc.(a)"
+SBAC,SBA Communications Corp. REIT
+SLB,"Schlumberger, Ltd."
+STX,Seagate Technology PLC
+SRE,Sempra Energy
+NOW,"ServiceNow, Inc.(a)"
+SHW,Sherwin-Williams Co.
+SPG,"Simon Property Group, Inc. REIT"
+SWKS,"Skyworks Solutions, Inc."
+SLG,SL Green Realty Corp. REIT
+SNA,"Snap-on,Â Inc."
+SO,Southern Co.
+LUV,Southwest Airlines Co.
+SWK,"Stanley BlackÂ & Decker, Inc."
+SBUX,Starbucks Corp.
+STT,State Street Corp.(c)
+STE,STERIS PLC
+SYK,Stryker Corp.
+SYF,Synchrony Financial
+SYY,"Synopsys, Inc.(a)"
+SYY,Sysco Corp.
+TROW,"T Rowe Price Group, Inc."
+TMUS,"T-MobileÂ US, Inc.(a)"
+TTWO,"Take-TwoÂ Interactive Software, Inc.(a)"
+TPR,"Tapestry, Inc."
+TGT,Target Corp.
+TEL,"TE Connectivity, Ltd."
+FTI,TechnipFMC PLC
+TFX,"Teleflex, Inc."
+TXN,"Texas Instruments, Inc."
+TXT,"Textron, Inc."
+TMO,"Thermo Fisher Scientific, Inc."
+TJX,"TJX Cos., Inc."
+TSCO,Tractor Supply Co.
+TT,Trane Technologies PLC
+TDG,"TransDigm Group, Inc."
+TRV,"Travelers Cos., Inc."
+TFC,Truist Financial Corp.
+TSN,"Tyson Foods, Inc. ClassÂ A"
+UDR,"UDR, Inc. REIT"
+ULTA,"Ulta Salon CosmeticsÂ & Fragrance, Inc.(a)"
+UAA,"Under Armour, Inc. ClassÂ A(a)"
+UAA,"Under Armour, Inc. ClassÂ C(a)"
+UNP,Union Pacific Corp.
+UAL,"United Continental Holdings, Inc.(a)"
+UPS,"United Parcel Service, Inc. ClassÂ B"
+URI,"United Rentals, Inc.(a)"
+UNH,"UnitedHealth Group, Inc."
+UHS,"Universal Health Services, Inc. ClassÂ B"
+UNM,Unum Group
+USB,US Bancorp
+VLO,Valero Energy Corp.
+VTR,"Ventas, Inc. REIT"
+VRSN,"VeriSign, Inc.(a)"
+VRSK,"Verisk Analytics, Inc."
+VZ,"Verizon Communications, Inc."
+VRTX,"Vertex Pharmaceuticals,"
+VFC,VF Corp.
+V,"Visa, Inc. ClassÂ A"
+VNO,Vornado Realty Trust REIT
+VMC,Vulcan Materials Co.
+GWW,"W.W. Grainger, Inc."
+WAB,Wabtec Corp.
+WMT,"Walmart, Inc."
+DIS,Walt Disney Co.
+WM,"Waste Management, Inc."
+WAT,Waters Corp.(a)
+WEC,"WEC Energy Group, Inc."
+WFC,Wells FargoÂ & Co.
+WELL,"Welltower, Inc. REIT"
+WDC,Western Digital Corp.
+WU,Western Union Co.
+WY,Weyerhaeuser Co. REIT
+WHR,Whirlpool Corp.
+WMB,"Williams Cos., Inc."
+WTW,Willis Towers Watson PLC
+WRB,WR Berkley Corp.
+WYNN,"Wynn Resorts, Ltd."
+XEL,"Xcel Energy, Inc."
+XRX,Xerox Holdings Corp.(a)
+XYL,"Xylem, Inc."
+YUM,"Yum! Brands, Inc."
+ZBRA,Zebra Technologies Corp. ClassÂ A(a)
+ZBH,"Zimmer Biomet Holdings, Inc."
+ZION,Zions Bancorp
+ZTS,"Zoetis, Inc."
