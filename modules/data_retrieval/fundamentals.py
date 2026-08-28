@@ -25,7 +25,7 @@ _METRICS: dict[Metric, tuple[str, tuple[str, ...]]] = {
     'cost_of_goods_sold': ('income_statement', ('CostOfRevenue', 'CostOfGoodsAndServicesSold', 'CostOfGoodsSold')),
     'gross_profit': ('income_statement', ('GrossProfit',)),
     'operating_income': ('income_statement', ('OperatingIncomeLoss',)),
-    'net_income': ('income_statement', ('NetIncomeLoss', 'ProfitLoss')),
+    'net_income': ('income_statement', ('NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic')),
     'total_assets': ('balance_sheet', ('Assets',)),
     'total_liabilities': ('balance_sheet', ('Liabilities',)),
     'shareholders_equity': ('balance_sheet', ('StockholdersEquity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest')),
@@ -43,6 +43,10 @@ _METRICS: dict[Metric, tuple[str, tuple[str, ...]]] = {
 }
 
 _META_COLUMNS = {'concept', 'label', 'level', 'abstract', 'unit', 'balance', 'weight', 'preferred_sign', 'standard_concept', 'point_in_time', 'dimension'}
+_METRIC_DEPENDENCIES: dict[Metric, tuple[Metric, ...]] = {
+    'gross_profit': ('revenue', 'cost_of_goods_sold'),
+    'total_liabilities': ('total_assets', 'shareholders_equity'),
+}
 
 def load_fundamentals(
     ticker: str,
@@ -66,10 +70,15 @@ def load_fundamentals(
     start, end = pd.Timestamp(start_date).normalize(), pd.Timestamp(end_date).normalize()
     if start > end:
         raise ValueError('start_date must be on or before end_date')
-    selected = list(_METRICS) if metrics is None else list(dict.fromkeys(metrics))
-    unknown = set(selected).difference(_METRICS)
+    requested = list(_METRICS) if metrics is None else list(dict.fromkeys(metrics))
+    unknown = set(requested).difference(_METRICS)
     if unknown:
         raise ValueError(f'Unknown metrics: {', '.join(sorted(unknown))}')
+    selected = list(requested)
+    for metric in requested:
+        for dependency in _METRIC_DEPENDENCIES.get(metric, ()):
+            if dependency not in selected:
+                selected.append(dependency)
     load_dotenv()
     sec_identity = identity or os.getenv('EDGAR_IDENTITY') or os.getenv('IDENTITY')
     if sec_identity:
@@ -96,16 +105,38 @@ def load_fundamentals(
                 statement = getattr(report, statement_name, None)
                 cache[statement_name] = statement.to_dataframe(view='summary', standard=False, presentation=True) if statement is not None else pd.DataFrame()
             row[metric] = _extract_value(cache[statement_name], concepts, period_end)
+        _derive_missing_metrics(row)
         observations.append(row)
 
     result = pd.DataFrame(observations)
-    columns = ['ticker', 'period_end', 'filing_date', *selected]
+    columns = ['ticker', 'period_end', 'filing_date', *requested]
     if result.empty:
         return pd.DataFrame(columns=columns)
     result = result.sort_values(['period_end', 'filing_date']).drop_duplicates('period_end', keep='last')
     result = _to_discrete_quarters(result, selected)
     result = result.loc[result['period_end'].between(start, end)]
     return result.reindex(columns=columns).sort_values('period_end').reset_index(drop=True)
+
+def _derive_missing_metrics(row: dict[str, object]) -> None:
+    """Fill missing statement totals from their standard accounting identities.
+
+    Args:
+        row (dict[str, object]): Filing observation containing extracted metric values.
+
+    Returns:
+        None.
+    """
+    if 'gross_profit' in row and pd.isna(row['gross_profit']):
+        revenue = pd.to_numeric(row.get('revenue'), errors='coerce')
+        cost = pd.to_numeric(row.get('cost_of_goods_sold'), errors='coerce')
+        if pd.notna(revenue) and pd.notna(cost):
+            row['gross_profit'] = float(revenue - cost)
+
+    if 'total_liabilities' in row and pd.isna(row['total_liabilities']):
+        assets = pd.to_numeric(row.get('total_assets'), errors='coerce')
+        equity = pd.to_numeric(row.get('shareholders_equity'), errors='coerce')
+        if pd.notna(assets) and pd.notna(equity):
+            row['total_liabilities'] = float(assets - equity)
 
 def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Timestamp:
     """Resolve a filing's fiscal period end from report metadata, SEC XBRL facts, or statement columns.
