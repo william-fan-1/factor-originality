@@ -48,7 +48,7 @@ def check_cache(
 def main() -> None:
     for year in range(2015, 2026, 5):
         ticker_path = DATA_DIR / 'tickers' / f'tickers_{year}.csv'
-        tickers = pd.read_csv(ticker_path)['Ticker'].dropna().astype(str).unique()
+        tickers = pd.read_csv(ticker_path)['Ticker']
 
         start_date = pd.Timestamp(year=year, month=1, day=1)
         end_date = pd.Timestamp(year=year + 4, month=12, day=31)
