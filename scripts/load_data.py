@@ -12,15 +12,22 @@ for future use (and to not have to recompute every call)
 """
 from collections.abc import Callable
 from pathlib import Path
+import sys
 
 import pandas as pd
 from tqdm import tqdm
+
+# Direct execution adds ``scripts`` to sys.path, so add the repository root
+# before importing sibling top-level modules.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.data_retrieval.benchmark import retrieve_benchmark
 from modules.data_retrieval.prices import retrieve_prices
 from modules.data_retrieval.fundamentals import load_fundamentals
 
-DATA_DIR = Path(__file__).resolve().parents[1] / 'data'
+DATA_DIR = PROJECT_ROOT / 'data'
 
 def check_cache(
     cache_path: Path,
