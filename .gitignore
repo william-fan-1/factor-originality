@@ -1,4 +1,7 @@
 # Ignore dev
 dev/
 
+__pycache__/
+*.pyc
+
 .env
