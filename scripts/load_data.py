@@ -49,7 +49,14 @@ def check_cache(
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     data = func(**kwargs)
-    data.to_parquet(cache_path, index=False)
+    if not isinstance(data, pd.DataFrame) or data.empty:
+        raise ValueError(f'{func.__name__} returned no rows')
+    temporary_path = cache_path.with_suffix(f'{cache_path.suffix}.tmp')
+    try:
+        data.to_parquet(temporary_path, index=False)
+        temporary_path.replace(cache_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
     return data
 
 def main() -> None:
@@ -69,24 +76,32 @@ def main() -> None:
             end_date=end_date,
         )
 
+        failed_tickers: list[str] = []
         for ticker in tqdm(tickers, desc=f'{year}-{year + 4}'):
-            check_cache(
-                cache_path=cache_dir / f'{ticker}_prices.parquet',
-                func=retrieve_prices,
-                ticker=ticker,
-                start_date=start_date,
-                # yfinance uses an exclusive end date.
-                end_date=end_date + pd.Timedelta(days=1),
-            )
+            try:
+                check_cache(
+                    cache_path=cache_dir / f'{ticker}_prices.parquet',
+                    func=retrieve_prices,
+                    ticker=ticker,
+                    start_date=start_date,
+                    # yfinance uses an exclusive end date.
+                    end_date=end_date + pd.Timedelta(days=1),
+                )
 
-            # Omitting metrics requests every supported fundamental.
-            check_cache(
-                cache_path=cache_dir / f'{ticker}_fundamentals.parquet',
-                func=load_fundamentals,
-                ticker=ticker,
-                start_date=start_date,
-                end_date=end_date,
-            )
+                # Omitting metrics requests every supported fundamental.
+                check_cache(
+                    cache_path=cache_dir / f'{ticker}_fundamentals.parquet',
+                    func=load_fundamentals,
+                    ticker=ticker,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            except Exception as error:
+                failed_tickers.append(ticker)
+                tqdm.write(f'FAILED {ticker}: {type(error).__name__}: {error}')
+
+        if failed_tickers:
+            print(f'Failed tickers for {year}-{year + 4}: {", ".join(failed_tickers)}')
 
 if __name__ == '__main__':
     main()
