@@ -1,7 +1,11 @@
-"""Retrieve price-related data"""
+"""Retrieve price-related data."""
+
+import os
 
 import pandas as pd
 import yfinance as yf
+from dotenv import load_dotenv
+from edgar import Company, set_identity
 
 def retrieve_prices(
     ticker: str,
@@ -54,15 +58,109 @@ def _get_shares_outstanding(
     Returns:
         pd.Series: Shares outstanding indexed by the requested trading dates.
     """
-    historical_shares = security.get_shares_full()
-    if historical_shares is not None and not historical_shares.empty:
-        historical_shares.index = pd.to_datetime(historical_shares.index)
-        historical_shares.index = historical_shares.index.tz_localize(None).normalize()
-        historical_shares = historical_shares.sort_index()
-        historical_shares = historical_shares[
-            ~historical_shares.index.duplicated(keep='last')
-        ]
-        return historical_shares.reindex(dates, method='ffill')
+    if dates.empty:
+        return pd.Series(index=dates, dtype='float64')
 
-    current_shares = security.info.get('sharesOutstanding')
-    return pd.Series(current_shares, index=dates, dtype='float64')
+    yahoo_shares = security.get_shares_full(
+        start=dates.min() - pd.Timedelta(days=365),
+        end=dates.max() + pd.Timedelta(days=1),
+    )
+    if yahoo_shares is None:
+        yahoo_shares = _empty_share_series()
+    else:
+        yahoo_shares = _normalize_share_series(yahoo_shares)
+
+    yahoo_aligned = yahoo_shares.reindex(dates, method='ffill')
+    if yahoo_aligned.notna().all():
+        return yahoo_aligned
+
+    sec_shares = _get_sec_shares_outstanding(
+        ticker=security.ticker,
+        start_date=dates.min() - pd.Timedelta(days=365),
+        end_date=dates.max(),
+    )
+    # SEC fills gaps in Yahoo's historical coverage; Yahoo wins when both
+    # sources report an observation on the same date.
+    historical_shares = pd.concat([sec_shares, yahoo_shares]).sort_index()
+    historical_shares = historical_shares[
+        ~historical_shares.index.duplicated(keep='last')
+    ]
+    return historical_shares.reindex(dates, method='ffill')
+
+def _get_sec_shares_outstanding(
+    ticker: str,
+    start_date: str | pd.Timestamp,
+    end_date: str | pd.Timestamp,
+) -> pd.Series:
+    """Retrieve historical shares outstanding from SEC company XBRL facts.
+
+    Args:
+        ticker (str): SEC ticker symbol to query.
+        start_date (str | pd.Timestamp): Inclusive start date for XBRL observations.
+        end_date (str | pd.Timestamp): Inclusive end date for XBRL observations.
+
+    Returns:
+        pd.Series: Historical SEC share counts indexed by their reported instant dates.
+    """
+    load_dotenv()
+    identity = os.getenv('EDGAR_IDENTITY') or os.getenv('IDENTITY')
+    if identity:
+        set_identity(identity)
+
+    entity_facts = Company(ticker).get_facts()
+    if entity_facts is None:
+        return _empty_share_series()
+    facts = entity_facts.to_dataframe(pit_mode=True)
+    if facts.empty:
+        return _empty_share_series()
+
+    concepts = facts['concept'].astype(str)
+    dei = facts.loc[concepts.eq('dei:EntityCommonStockSharesOutstanding')].copy()
+    if dei.empty:
+        dei = facts.loc[concepts.eq('us-gaap:CommonStockSharesOutstanding')].copy()
+    if dei.empty:
+        return _empty_share_series()
+
+    dei['period_end'] = pd.to_datetime(dei['period_end'], errors='coerce').dt.normalize()
+    dei['numeric_value'] = pd.to_numeric(dei['numeric_value'], errors='coerce')
+    start, end = pd.Timestamp(start_date).normalize(), pd.Timestamp(end_date).normalize()
+    dei = dei.loc[
+        dei['period_end'].between(start, end)
+        & dei['numeric_value'].notna()
+        & dei['numeric_value'].gt(0)
+    ]
+    if dei.empty:
+        return _empty_share_series()
+    if 'filing_date' in dei:
+        dei['filing_date'] = pd.to_datetime(dei['filing_date'], errors='coerce')
+        dei = dei.sort_values(['period_end', 'filing_date'])
+    series = dei.drop_duplicates('period_end', keep='last').set_index('period_end')['numeric_value']
+    return _normalize_share_series(series)
+
+def _normalize_share_series(shares: pd.Series) -> pd.Series:
+    """Normalize a historical share-count series to unique timezone-naive dates.
+
+    Args:
+        shares (pd.Series): Share counts indexed by date-like values.
+
+    Returns:
+        pd.Series: Numeric share counts indexed by sorted normalized dates.
+    """
+    if shares.empty:
+        return _empty_share_series()
+    result = shares.copy()
+    index = pd.to_datetime(result.index, errors='coerce', utc=True)
+    result.index = index.tz_convert(None).normalize()
+    result = pd.to_numeric(result, errors='coerce').dropna().sort_index()
+    return result[~result.index.duplicated(keep='last')]
+
+def _empty_share_series() -> pd.Series:
+    """Create an empty share-count series with a date-compatible index.
+
+    Args:
+        None.
+
+    Returns:
+        pd.Series: Empty floating-point series with a ``DatetimeIndex``.
+    """
+    return pd.Series(dtype='float64', index=pd.DatetimeIndex([], name='date'))
