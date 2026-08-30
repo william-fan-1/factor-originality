@@ -6,47 +6,23 @@ import os
 import re
 from collections.abc import Iterable, Sequence
 from datetime import date
-from typing import Literal, TypeAlias
 
 import pandas as pd
-from edgar import Company, set_identity
 from dotenv import load_dotenv
+from edgar import Company, set_identity
 
-Metric: TypeAlias = Literal[
-    'revenue', 'cost_of_goods_sold', 'gross_profit', 'operating_income', 'net_income',
-    'total_assets', 'total_liabilities', 'shareholders_equity', 'cash_and_equivalents',
-    'current_assets', 'current_liabilities', 'property_plant_equipment', 'long_term_debt',
-    'short_term_debt', 'operating_cash_flow', 'capital_expenditures',
-    'depreciation_amortization', 'stock_issuance', 'stock_repurchases',
-]
-
-_METRICS: dict[Metric, tuple[str, tuple[str, ...]]] = {
-    'revenue': ('income_statement', ('Revenue', 'Revenues', 'SalesRevenueNet', 'RevenueFromContractWithCustomerExcludingAssessedTax')),
-    'cost_of_goods_sold': ('income_statement', ('CostOfRevenue', 'CostOfGoodsAndServicesSold', 'CostOfGoodsSold')),
-    'gross_profit': ('income_statement', ('GrossProfit',)),
-    'operating_income': ('income_statement', ('OperatingIncomeLoss',)),
-    'net_income': ('income_statement', ('NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic')),
-    'total_assets': ('balance_sheet', ('Assets',)),
-    'total_liabilities': ('balance_sheet', ('Liabilities',)),
-    'shareholders_equity': ('balance_sheet', ('StockholdersEquity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest')),
-    'cash_and_equivalents': ('balance_sheet', ('CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents')),
-    'current_assets': ('balance_sheet', ('AssetsCurrent',)),
-    'current_liabilities': ('balance_sheet', ('LiabilitiesCurrent',)),
-    'property_plant_equipment': ('balance_sheet', ('PropertyPlantAndEquipmentNet',)),
-    'long_term_debt': ('balance_sheet', ('LongTermDebtNoncurrent', 'LongTermDebt')),
-    'short_term_debt': ('balance_sheet', ('ShortTermBorrowings', 'LongTermDebtCurrent', 'ShortTermDebtCurrent')),
-    'operating_cash_flow': ('cash_flow_statement', ('NetCashProvidedByUsedInOperatingActivities',)),
-    'capital_expenditures': ('cash_flow_statement', ('PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsForProceedsFromOtherPropertyPlantAndEquipment')),
-    'depreciation_amortization': ('cash_flow_statement', ('DepreciationDepletionAndAmortization', 'DepreciationDepletionAndAmortizationPropertyPlantAndEquipment')),
-    'stock_issuance': ('cash_flow_statement', ('ProceedsFromStockOptionsExercised', 'ProceedsFromIssuanceOfCommonStock')),
-    'stock_repurchases': ('cash_flow_statement', ('PaymentsForRepurchaseOfCommonStock',)),
-}
-
-_META_COLUMNS = {'concept', 'label', 'level', 'abstract', 'unit', 'balance', 'weight', 'preferred_sign', 'standard_concept', 'point_in_time', 'dimension'}
-_METRIC_DEPENDENCIES: dict[Metric, tuple[Metric, ...]] = {
-    'gross_profit': ('revenue', 'cost_of_goods_sold'),
-    'total_liabilities': ('total_assets', 'shareholders_equity'),
-}
+from modules.data_retrieval.fundamental_mappings import (
+    COMPONENT_CONCEPT_PATTERNS,
+    COMPONENT_LABEL_PATTERNS,
+    COMPONENT_STANDARD_CONCEPTS,
+    LABEL_EXCLUSIONS,
+    LABEL_PATTERNS,
+    META_COLUMNS,
+    METRIC_DEPENDENCIES,
+    METRICS,
+    STANDARD_CONCEPTS,
+    Metric,
+)
 
 def load_fundamentals(
     ticker: str,
@@ -70,13 +46,13 @@ def load_fundamentals(
     start, end = pd.Timestamp(start_date).normalize(), pd.Timestamp(end_date).normalize()
     if start > end:
         raise ValueError('start_date must be on or before end_date')
-    requested = list(_METRICS) if metrics is None else list(dict.fromkeys(metrics))
-    unknown = set(requested).difference(_METRICS)
+    requested = list(METRICS) if metrics is None else list(dict.fromkeys(metrics))
+    unknown = set(requested).difference(METRICS)
     if unknown:
         raise ValueError(f'Unknown metrics: {', '.join(sorted(unknown))}')
     selected = list(requested)
     for metric in requested:
-        for dependency in _METRIC_DEPENDENCIES.get(metric, ()):
+        for dependency in METRIC_DEPENDENCIES.get(metric, ()):
             if dependency not in selected:
                 selected.append(dependency)
     load_dotenv()
@@ -84,12 +60,14 @@ def load_fundamentals(
     if sec_identity:
         set_identity(sec_identity)
 
-    filings = Company(ticker.upper()).get_filings(
+    company = Company(ticker.upper())
+    filings = company.get_filings(
         form=['10-Q', '10-K'], amendments=False,
-        filing_date=(str((start - pd.Timedelta(days=380)).date()), str((end + pd.Timedelta(days=120)).date())),
+        filing_date=(str((start - pd.Timedelta(days=380)).date()), str((end + pd.Timedelta(days=370)).date())),
         sort_by=[('filing_date', 'ascending')],
     )
     observations: list[dict[str, object]] = []
+    company_facts: pd.DataFrame | None = None
     for filing in filings:
         report = filing.obj()
         period_end = _resolve_period_end(report, filing, ticker.upper())
@@ -100,11 +78,37 @@ def load_fundamentals(
         }
         cache: dict[str, pd.DataFrame] = {}
         for metric in selected:
-            statement_name, concepts = _METRICS[metric]
+            statement_name, concepts = METRICS[metric]
             if statement_name not in cache:
                 statement = getattr(report, statement_name, None)
-                cache[statement_name] = statement.to_dataframe(view='summary', standard=False, presentation=True) if statement is not None else pd.DataFrame()
-            row[metric] = _extract_value(cache[statement_name], concepts, period_end)
+                cache[statement_name] = statement.to_dataframe(view='summary', standard=True, presentation=True) if statement is not None else pd.DataFrame()
+            value, source, matched_concept = _resolve_metric_value(
+                metric, cache[statement_name], concepts, period_end
+            )
+            if pd.isna(value) and cache[statement_name].empty:
+                if company_facts is None:
+                    company_facts = _load_company_facts(company)
+                value, matched_concept, fact_filing_date = _resolve_company_fact(
+                    metric=metric,
+                    facts=company_facts,
+                    concepts=concepts,
+                    period_end=period_end,
+                    filing_date=pd.Timestamp(report.filing_date).normalize(),
+                    form=str(getattr(filing, 'form', '')),
+                )
+                if pd.notna(value):
+                    source = 'company_facts'
+                    if fact_filing_date is not None:
+                        row['filing_date'] = max(pd.Timestamp(row['filing_date']), fact_filing_date)
+            value = _normalize_metric_sign(metric, value)
+            has_statement_data = not cache[statement_name].empty or (
+                company_facts is not None and not company_facts.empty
+            )
+            if metric in {'stock_issuance', 'stock_repurchases', 'short_term_debt', 'long_term_debt', 'capital_expenditures'} and pd.isna(value) and has_statement_data:
+                value, source = 0.0, 'default_zero'
+            row[metric] = value
+            row[f'_{metric}_source'] = source
+            row[f'_{metric}_concept'] = matched_concept
         _derive_missing_metrics(row)
         observations.append(row)
 
@@ -116,6 +120,20 @@ def load_fundamentals(
     result = _to_discrete_quarters(result, selected)
     result = result.loc[result['period_end'].between(start, end)]
     return result.reindex(columns=columns).sort_values('period_end').reset_index(drop=True)
+
+def _normalize_metric_sign(metric: Metric, value: float) -> float:
+    """Normalize statement-presentation signs while preserving cash-flow directions.
+
+    Args:
+        metric (Metric): Canonical metric associated with the value.
+        value (float): Numeric value extracted from a financial statement.
+
+    Returns:
+        float: Sign-normalized value for the metric.
+    """
+    if metric == 'cost_of_goods_sold' and pd.notna(value):
+        return abs(value)
+    return value
 
 def _derive_missing_metrics(row: dict[str, object]) -> None:
     """Fill missing statement totals from their standard accounting identities.
@@ -149,6 +167,7 @@ def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Times
     Returns:
         pd.Timestamp: Normalized fiscal period-end date for the filing.
     """
+    metadata_dates: list[pd.Timestamp] = []
     for owner in (report, filing):
         try:
             source = getattr(owner, 'period_of_report', None)
@@ -156,8 +175,9 @@ def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Times
             source = None
         timestamp = _valid_timestamp(source)
         if timestamp is not None:
-            return timestamp
+            metadata_dates.append(timestamp)
 
+    fact_dates: list[pd.Timestamp] = []
     financials = getattr(report, 'financials', None)
     xbrl = getattr(financials, 'xb', None)
     facts_view = getattr(xbrl, 'facts_view', None)
@@ -169,7 +189,7 @@ def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Times
                     for value in facts[column].dropna():
                         timestamp = _valid_timestamp(value)
                         if timestamp is not None:
-                            return timestamp
+                            fact_dates.append(timestamp)
         except (AttributeError, KeyError, TypeError, ValueError):
             pass
 
@@ -189,6 +209,10 @@ def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Times
                     statement_dates.append(timestamp)
     if statement_dates:
         return max(statement_dates)
+    if fact_dates:
+        return fact_dates[0]
+    if metadata_dates:
+        return metadata_dates[0]
 
     accession = getattr(filing, 'accession_no', 'unknown')
     form = getattr(filing, 'form', 'unknown')
@@ -214,8 +238,8 @@ def _valid_timestamp(value: object) -> pd.Timestamp | None:
 
 def _to_discrete_quarters(frame: pd.DataFrame, metrics: Sequence[Metric]) -> pd.DataFrame:
     """Convert 10-Q year-to-date and 10-K annual flows into discrete-quarter values."""
-    cash_metrics = [metric for metric in metrics if _METRICS[metric][0] == 'cash_flow_statement']
-    income_metrics = [metric for metric in metrics if _METRICS[metric][0] == 'income_statement']
+    cash_metrics = [metric for metric in metrics if METRICS[metric][0] == 'cash_flow_statement']
+    income_metrics = [metric for metric in metrics if METRICS[metric][0] == 'income_statement']
     prior_cash: dict[str, float] = {}
     income_since_annual: dict[str, list[float]] = {metric: [] for metric in income_metrics}
     for index in frame.index:
@@ -236,27 +260,185 @@ def _to_discrete_quarters(frame: pd.DataFrame, metrics: Sequence[Metric]) -> pd.
                 income_since_annual[metric].append(float(raw))
     return frame.drop(columns='form')
 
-def _extract_value(frame: pd.DataFrame, concepts: Iterable[str], period_end: pd.Timestamp) -> float:
-    """Extract the best matching concept value for a filing's report date."""
-    if frame.empty or 'concept' not in frame:
-        return float('nan')
-    names = frame['concept'].astype(str).str.replace('us-gaap_', '', regex=False).str.split(':').str[-1]
-    row = None
+def _load_company_facts(company: Company) -> pd.DataFrame:
+    """Load SEC Company Facts once for filings whose parsed statements are unavailable.
+
+    Args:
+        company (Company): Edgartools company whose XBRL facts should be loaded.
+
+    Returns:
+        pd.DataFrame: Point-in-time company facts, or an empty frame when unavailable.
+    """
+    try:
+        entity_facts = company.get_facts()
+        return entity_facts.to_dataframe(pit_mode=True) if entity_facts is not None else pd.DataFrame()
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return pd.DataFrame()
+
+def _resolve_company_fact(
+    metric: Metric,
+    facts: pd.DataFrame,
+    concepts: Iterable[str],
+    period_end: pd.Timestamp,
+    filing_date: pd.Timestamp,
+    form: str,
+) -> tuple[float, str | None, pd.Timestamp | None]:
+    """Resolve an exact canonical metric from the matching SEC Company Facts filing.
+
+    Args:
+        metric (Metric): Canonical metric being resolved.
+        facts (pd.DataFrame): SEC Company Facts observations for the company.
+        concepts (Iterable[str]): Exact XBRL concept names accepted for the metric.
+        period_end (pd.Timestamp): Fiscal period end of the failed parsed statement.
+        filing_date (pd.Timestamp): Filing date used to prevent look-ahead matches.
+        form (str): SEC form type, such as ``'10-Q'`` or ``'10-K'``.
+
+    Returns:
+        tuple[float, str | None, pd.Timestamp | None]: Numeric fact, matched concept,
+            and its filing date, or ``NaN``, ``None``, and ``None``.
+    """
+    required = {'concept', 'period_end', 'filing_date', 'numeric_value'}
+    if facts.empty or not required.issubset(facts.columns):
+        return float('nan'), None, None
+    eligible = facts.copy()
+    eligible['_period_end'] = pd.to_datetime(eligible['period_end'], errors='coerce').dt.normalize()
+    eligible['_filing_date'] = pd.to_datetime(eligible['filing_date'], errors='coerce').dt.normalize()
+    eligible = eligible.loc[
+        eligible['_period_end'].eq(period_end)
+        & eligible['_filing_date'].ge(filing_date)
+    ]
+    form_column = 'form_type' if 'form_type' in eligible else 'form'
+    if form_column in eligible:
+        eligible = eligible.loc[eligible[form_column].astype(str).str.startswith(form)]
+    if eligible.empty:
+        return float('nan'), None, None
+
+    names = eligible['concept'].astype(str).str.replace('us-gaap_', '', regex=False).str.split(':').str[-1]
     for concept in concepts:
-        matches = frame.loc[names.eq(concept)]
+        matches = eligible.loc[names.eq(concept)].copy()
+        matches['numeric_value'] = pd.to_numeric(matches['numeric_value'], errors='coerce')
+        matches = matches.loc[matches['numeric_value'].notna()]
+        if matches.empty:
+            continue
+        statement_name = METRICS[metric][0]
+        if statement_name != 'balance_sheet' and 'period_start' in matches:
+            starts = pd.to_datetime(matches['period_start'], errors='coerce').dt.normalize()
+            matches['_duration'] = (period_end - starts).dt.days
+            matches = matches.loc[matches['_duration'].ge(0)]
+            if matches.empty:
+                continue
+            wants_annual_or_ytd = form == '10-K' or statement_name == 'cash_flow_statement'
+            duration = matches['_duration'].max() if wants_annual_or_ytd else matches['_duration'].min()
+            matches = matches.loc[matches['_duration'].eq(duration)]
+        earliest_filing = matches['_filing_date'].min()
+        matches = matches.loc[matches['_filing_date'].eq(earliest_filing)]
+        return (
+            float(matches.iloc[-1]['numeric_value']),
+            str(matches.iloc[-1]['concept']),
+            pd.Timestamp(earliest_filing),
+        )
+    return float('nan'), None, None
+
+def _resolve_metric_value(
+    metric: Metric,
+    frame: pd.DataFrame,
+    concepts: Iterable[str],
+    period_end: pd.Timestamp,
+) -> tuple[float, str, str | None]:
+    """Resolve a metric through exact, standardized, and constrained-label matches.
+
+    Args:
+        metric (Metric): Canonical metric being resolved.
+        frame (pd.DataFrame): Financial statement rows returned by edgartools.
+        concepts (Iterable[str]): Exact XBRL concept names accepted for the metric.
+        period_end (pd.Timestamp): Filing period end used to choose the value column.
+
+    Returns:
+        tuple[float, str, str | None]: Value, resolution source, and matched concept name.
+    """
+    if frame.empty or 'concept' not in frame:
+        return float('nan'), 'missing', None
+    eligible = frame
+    if 'abstract' in eligible:
+        eligible = eligible.loc[~eligible['abstract'].fillna(False).astype(bool)]
+    names = frame['concept'].astype(str).str.replace('us-gaap_', '', regex=False).str.split(':').str[-1]
+    for concept in concepts:
+        matches = eligible.loc[names.eq(concept)]
         if not matches.empty:
-            row = matches.iloc[0]
-            break
-    if row is None:
-        return float('nan')
-    candidates = [column for column in frame.columns if str(column) not in _META_COLUMNS]
+            value = _extract_period_value(matches, frame, period_end)
+            if pd.notna(value):
+                return value, 'reported', str(matches.iloc[0]['concept'])
+
+    component_values: dict[str, float] = {}
+    if 'standard_concept' in eligible:
+        standardized = eligible['standard_concept'].fillna('').map(str).str.split(':').str[-1]
+        for concept in STANDARD_CONCEPTS.get(metric, ()):
+            matches = eligible.loc[standardized.eq(concept)]
+            if not matches.empty:
+                value = _extract_period_value(matches, frame, period_end)
+                if pd.notna(value):
+                    return value, 'standardized', str(matches.iloc[0]['concept'])
+
+        for concept in COMPONENT_STANDARD_CONCEPTS.get(metric, ()):
+            matches = eligible.loc[standardized.eq(concept)]
+            if not matches.empty:
+                value = _extract_period_value(matches, frame, period_end)
+                if pd.notna(value):
+                    component_values[str(matches.iloc[0]['concept'])] = value
+
+    labels = eligible.get('label', pd.Series('', index=eligible.index)).astype(str).str.strip()
+    excluded = LABEL_EXCLUSIONS.get(metric, ())
+    for pattern in LABEL_PATTERNS.get(metric, ()):
+        mask = labels.str.match(pattern, case=False, na=False)
+        for term in excluded:
+            mask &= ~labels.str.contains(re.escape(term), case=False, na=False)
+        matches = eligible.loc[mask]
+        if not matches.empty:
+            value = _extract_period_value(matches, frame, period_end)
+            if pd.notna(value):
+                return value, 'regex', str(matches.iloc[0]['concept'])
+
+    for pattern in COMPONENT_LABEL_PATTERNS.get(metric, ()):
+        matches = eligible.loc[labels.str.match(pattern, case=False, na=False)]
+        if not matches.empty:
+            value = _extract_period_value(matches, frame, period_end)
+            if pd.notna(value):
+                component_values[str(matches.iloc[0]['concept'])] = value
+    raw_concepts = eligible['concept'].fillna('').map(str)
+    for pattern in COMPONENT_CONCEPT_PATTERNS.get(metric, ()):
+        matches = eligible.loc[raw_concepts.str.match(pattern, case=False, na=False)]
+        if not matches.empty:
+            value = _extract_period_value(matches, frame, period_end)
+            if pd.notna(value):
+                component_values[str(matches.iloc[0]['concept'])] = value
+    if component_values:
+        return float(sum(component_values.values())), 'components', '+'.join(component_values)
+    return float('nan'), 'missing', None
+
+def _extract_period_value(
+    rows: pd.DataFrame,
+    frame: pd.DataFrame,
+    period_end: pd.Timestamp,
+) -> float:
+    """Extract the best period value from one or more matched statement rows.
+
+    Args:
+        rows (pd.DataFrame): Candidate statement rows for one metric.
+        frame (pd.DataFrame): Full statement used to identify value columns.
+        period_end (pd.Timestamp): Filing period end used to rank value columns.
+
+    Returns:
+        float: Best numeric period value, or ``NaN`` when none exists.
+    """
+    candidates = [column for column in frame.columns if str(column) not in META_COLUMNS]
     dated = [column for column in candidates if period_end.strftime('%Y-%m-%d') in str(column)]
     candidates = dated or candidates
     quarter = [column for column in candidates if re.search(r'\bQ[1-4]\b', str(column), re.I)]
-    for column in quarter or candidates:
-        value = pd.to_numeric(row[column], errors='coerce')
-        if pd.notna(value):
-            return float(value)
+    for _, row in rows.iterrows():
+        for column in quarter or candidates:
+            value = pd.to_numeric(row[column], errors='coerce')
+            if pd.notna(value):
+                return float(value)
     return float('nan')
 
 def _metric_loader(metric: Metric, ticker: str, start_date: str | date, end_date: str | date, identity: str | None) -> pd.DataFrame:
@@ -280,7 +462,7 @@ def _make_metric_function(metric: Metric):
     """
     return retrieve
 
-for _metric in _METRICS:
+for _metric in METRICS:
     globals()[_metric] = _make_metric_function(_metric)
 
-__all__ = ['Metric', 'load_fundamentals', *_METRICS]
+__all__ = ['Metric', 'load_fundamentals', *METRICS]
