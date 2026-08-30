@@ -18,7 +18,6 @@ MO,"Altria Group, Inc."
 AMZN,"Amazon.com, Inc.(a)"
 AEE,Ameren Corp.
 AAL,American Airlines Group Inc.
-AEP,"American Electric Power Co., Inc."
 AXP,American Express Co.
 AIG,"American International Group, Inc."
 AMT,American Tower Corp.
@@ -30,7 +29,6 @@ APH,Amphenol Corp. (Class A)
 ADI,"Analog Devices, Inc."
 ELV,Anthem Inc.
 AON,Aon PLC
-APA,Apache Corp.
 AIV,Apartment Investment & Management Co. (Class A)
 AAPL,"Apple, Inc."
 AMAT,"Applied Materials, Inc."
@@ -41,19 +39,15 @@ ADSK,"Autodesk, Inc.(a)"
 ADP,"Automatic Data Processing, Inc."
 AN,"AutoNation, Inc.(a)"
 AZO,"Autozone, Inc.(a)"
-AVB,"AvalonBay Communities, Inc."
 AVY,Avery Dennison Corp.
 BALL,Ball Corp.
 BAC,Bank of America Corp.
-BK,Bank of New York Mellon Corp.
 BAX,"Baxter International, Inc."
 TFC,BB&T Corp.
 BDX,"Becton, Dickinson & Co."
-BBBY,"Bed Bath & Beyond, Inc.(a)"
 BRK-B,"Berkshire Hathaway, Inc. (Class B)(a)"
 BBY,"Best Buy Co., Inc."
 BIIB,"Biogen Idec, Inc.(a)"
-BLK,"BlackRock, Inc."
 BA,Boeing Co.
 BWA,"BorgWarner, Inc."
 BXP,"Boston Properties, Inc."
@@ -72,11 +66,9 @@ CNP,"CenterPoint Energy, Inc."
 LUMN,"CenturyLink, Inc."
 CF,"CF Industries Holdings, Inc."
 SCHW,Charles Schwab Corp.
-EXE,Chesapeake Energy Corp.
 CVX,Chevron Corp.
 CMG,"Chipotle Mexican Grill, Inc.(a)"
 CB,Chubb Corp.
-CI,CIGNA Corp.
 CINF,Cincinnati Financial Corp.
 CTAS,Cintas Corp.
 CSCO,"Cisco Systems, Inc."
@@ -116,23 +108,19 @@ DOV,Dover Corp.
 KDP,"Dr. Pepper Snapple Group, Inc."
 DTE,DTE Energy Co.
 DUK,Duke Energy Corp.
-DD,E. I. du Pont de Nemours & Co.
 EMN,Eastman Chemical Co.
 ETN,Eaton Corp. PLC
 EBAY,"eBay, Inc.(a)"
 ECL,"Ecolab, Inc."
 EIX,Edison International
 EW,Edwards Lifesciences Corp.(a)
-EA,"Electronic Arts, Inc.(a)"
 LLY,Eli Lilly & Co.
 EMR,Emerson Electric Co.
-VAL,Ensco PLC (Class A)
 ETR,Entergy Corp.
 EOG,"EOG Resources, Inc."
 EQT,EQT Corp.
 EFX,"Equifax, Inc."
 EQIX,Equinix Inc.
-EQR,Equity Residential
 ESS,"Essex Property Trust, Inc."
 EL,"Estee Lauder Cos., Inc. (Class A)"
 ES,Eversource Energy
@@ -169,8 +157,6 @@ GNW,"Genworth Financial, Inc. (Class A)(a)"
 GILD,"Gilead Sciences, Inc.(a)"
 GS,"Goldman Sachs Group, Inc."
 GT,Goodyear Tire & Rubber Co.
-GOOGL,"Google, Inc. (Class A)(a)"
-GOOG,"Google, Inc. (Class C)(a)"
 HRB,"H&R Block, Inc."
 HAL,Halliburton Co.
 HOG,"Harley-Davidson, Inc."
@@ -191,7 +177,6 @@ HST,"Host Hotels & Resorts, Inc."
 HUM,"Humana, Inc."
 HBAN,"Huntington Bancshares, Inc."
 ITW,"Illinois Tool Works, Inc."
-IR,Ingersoll-Rand PLC
 INTC,Intel Corp.
 ICE,"Intercontinental Exchange, Inc.(b)"
 IBM,International Business Machines Corp.
@@ -205,7 +190,6 @@ J,"Jacobs Engineering Group, Inc.(a)"
 SJM,JM Smucker Co.
 JNJ,Johnson & Johnson
 JCI,"Johnson Controls, Inc."
-JOY,"Joy Global, Inc."
 JPM,JPMorgan Chase & Co.
 KEY,KeyCorp
 KMB,Kimberly-Clark Corp.
@@ -214,7 +198,6 @@ KMI,"Kinder Morgan, Inc."
 KLAC,KLA-Tencor Corp.
 KSS,Kohl’s Corp.
 KR,Kroger Co.
-LB,"L Brands, Inc."
 LH,Laboratory Corp. of America
 LRCX,Lam Research Corp.
 MAS,"Legg Mason, Inc."
@@ -238,7 +221,6 @@ MA,"MasterCard, Inc. (Class A)"
 MAT,"Mattel, Inc."
 MKC,"McCormick & Co., Inc."
 MCD,McDonald’s Corp.
-MHFI,"McGraw-Hill Cos., Inc."
 MCK,McKesson Corp.
 MDT,Medtronic PLC
 MRK,"Merck & Co., Inc."
@@ -320,7 +302,6 @@ ROST,"Ross Stores, Inc."
 RCL,Royal Caribbean Cruises Ltd.
 R,"Ryder System, Inc."
 CRM,"Salesforce.com, Inc.(a)"
-SNDK,SanDisk Corp.
 SLB,"Schlumberger, Ltd."
 STX,Seagate Technology PLC
 SRE,Sempra Energy
@@ -351,7 +332,6 @@ TSCO,Tractor Supply Co.
 RIG,"Transocean, Ltd."
 TRV,"Travelers Cos., Inc."
 TRIP,"TripAdvisor, Inc.(a)"
-FOXA,"Twenty-First Century Fox, Inc. (Class A)"
 TSN,"Tyson Foods, Inc. (Class A)"
 USB,U.S. Bancorp
 UAA,"Under Armour, Inc. (Class A)(a)"
@@ -373,7 +353,6 @@ VNO,Vornado Realty Trust
 VMC,Vulcan Materials Co.
 GWW,"W.W. Grainger, Inc."
 WMT,"Wal-Mart Stores, Inc."
-DIS,Walt Disney Co.
 WM,"Waste Management, Inc."
 WAT,Waters Corp.(a)
 WFC,Wells Fargo & Co.
@@ -381,12 +360,10 @@ WDC,Western Digital Corp.
 WU,Western Union Co.
 WY,Weyerhaeuser Co.
 POOL,Whirlpool Corp.
-WFM,"Whole Foods Market, Inc."
 WMB,"Williams Cos., Inc."
 WEC,Wisconsin Energy Corp.
 WYNN,"Wynn Resorts, Ltd."
 XEL,"Xcel Energy, Inc."
-XRX,Xerox Corp.
 XYL,"Xylem, Inc."
 YUM,"Yum! Brands, Inc."
 ZBH,"Zimmer Holdings, Inc."
