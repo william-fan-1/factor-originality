@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -31,7 +32,6 @@ def load_fundamental_data(
     data['filing_date'] = pd.to_datetime(data['filing_date'], errors='raise')
     return data.sort_values(['ticker', 'period_end', 'filing_date']).reset_index(drop=True)
 
-
 def load_price_data(
     tickers: Sequence[str],
     year: int,
@@ -53,7 +53,6 @@ def load_price_data(
     data = data.sort_values(['ticker', 'date']).reset_index(drop=True)
     return _process_data(data)
 
-
 def calculate_market_cap(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate capitalization.
 
@@ -64,13 +63,12 @@ def calculate_market_cap(data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Copy of the data with a ``market_cap`` column.
     """
-    _require_columns(data, {'close', 'shares_outstanding'})
+    require_columns(data, {'close', 'shares_outstanding'})
     result = data.copy()
     close = pd.to_numeric(result['close'], errors='coerce')
     shares = pd.to_numeric(result['shares_outstanding'], errors='coerce')
     result['market_cap'] = close * shares
     return result
-
 
 def winsorize(
     data: pd.DataFrame,
@@ -86,7 +84,7 @@ def winsorize(
     Returns:
         pd.DataFrame: Copy of the data with a ``winsorized_market_cap`` column.
     """
-    _require_columns(data, {'date', 'market_cap'})
+    require_columns(data, {'date', 'market_cap'})
     if not 0 <= percentile <= 100:
         raise ValueError('percentile must be between 0 and 100')
 
@@ -98,7 +96,6 @@ def winsorize(
     result['winsorized_market_cap'] = caps.clip(upper=upper_bounds)
     return result
 
-
 def calculate_returns(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate returns.
 
@@ -109,14 +106,13 @@ def calculate_returns(data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Copy of the data with a ticker-level daily ``return`` column.
     """
-    _require_columns(data, {'ticker', 'date', 'adjusted_close'})
+    require_columns(data, {'ticker', 'date', 'adjusted_close'})
     result = data.sort_values(['ticker', 'date']).copy()
     prices = pd.to_numeric(result['adjusted_close'], errors='coerce')
     result['return'] = prices.groupby(result['ticker'], sort=False).pct_change(
         fill_method=None
     )
     return result
-
 
 def _process_data(data: pd.DataFrame) -> pd.DataFrame:
     """Process prices.
@@ -130,7 +126,6 @@ def _process_data(data: pd.DataFrame) -> pd.DataFrame:
     data = calculate_market_cap(data)
     data = winsorize(data)
     return calculate_returns(data)
-
 
 def _load_cached_frames(
     tickers: Sequence[str],
@@ -165,8 +160,22 @@ def _load_cached_frames(
         frames = executor.map(pd.read_parquet, paths)
         return pd.concat(frames, ignore_index=True)
 
+def drop_invalid_factor(data: pd.DataFrame, factor: str) -> pd.DataFrame:
+    """Drop invalid observations.
 
-def _require_columns(data: pd.DataFrame, columns: set[str]) -> None:
+    Args:
+        data (pd.DataFrame): Data containing the calculated factor column.
+        factor (str): Factor column whose invalid observations should be removed.
+
+    Returns:
+        pd.DataFrame: Data containing only finite, non-null factor observations.
+    """
+    require_columns(data, {factor})
+    result = data.copy()
+    result[factor] = result[factor].replace([np.inf, -np.inf], np.nan)
+    return result.dropna(subset=[factor]).reset_index(drop=True)
+
+def require_columns(data: pd.DataFrame, columns: set[str]) -> None:
     """Validate columns.
 
     Args:
@@ -180,11 +189,12 @@ def _require_columns(data: pd.DataFrame, columns: set[str]) -> None:
     if missing:
         raise ValueError(f'Missing required columns: {", ".join(sorted(missing))}')
 
-
 __all__ = [
     'calculate_market_cap',
     'calculate_returns',
+    'drop_invalid_factor',
     'load_fundamental_data',
     'load_price_data',
+    'require_columns',
     'winsorize',
 ]
