@@ -1,14 +1,13 @@
 """Provide a common interface for constructing long-short factor portfolios."""
 
-from collections.abc import Callable
-from typing import Literal, TypeAlias
-
 import numpy as np
 import pandas as pd
 
+from modules.factors.mappings import (
+    FactorDirection,
+    get_factor_mapping,
+)
 from modules.factors.utils import require_columns
-
-FactorDirection: TypeAlias = Literal['high', 'low']
 
 
 class Factor:
@@ -18,33 +17,24 @@ class Factor:
         self,
         factor: str,
         year: int,
-        func: Callable[[pd.DataFrame], pd.DataFrame],
         data: pd.DataFrame,
-        direction: FactorDirection = 'high',
     ) -> None:
         """Initialize a factor and calculate its portfolio returns.
 
         Args:
-            factor (str): Signal column produced by ``func``.
+            factor (str): Registered factor name from ``FACTOR_MAPPINGS``.
             year (int): First year of the factor's source-data period.
-            func (Callable[[pd.DataFrame], pd.DataFrame]): Function that adds the
-                named factor signal to the supplied data.
             data (pd.DataFrame): Daily security panel required by the factor function.
-            direction (FactorDirection): ``'high'`` when the highest signal tercile
-                is long, or ``'low'`` when the lowest signal tercile is long.
 
         Returns:
             None.
         """
-        if not callable(func):
-            raise TypeError('func must be callable')
-        if direction not in {'high', 'low'}:
-            raise ValueError("direction must be either 'high' or 'low'")
-
-        self.factor = factor
+        definition = get_factor_mapping(factor)
+        self.name = factor
+        self.factor = definition['column']
         self.year = year
-        self.func = func
-        self.direction = direction
+        self.func = definition['func']
+        self.direction: FactorDirection = definition['direction']
         self.signals = pd.DataFrame()
         self.portfolios = pd.DataFrame()
         self.portfolio_returns = pd.DataFrame()
