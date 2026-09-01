@@ -53,6 +53,61 @@ def load_price_data(
     data = data.sort_values(['ticker', 'date']).reset_index(drop=True)
     return _process_data(data)
 
+def align_data(
+    fundamental_data: pd.DataFrame,
+    price_data: pd.DataFrame,
+) -> pd.DataFrame:
+    """Align fundamentals.
+
+    Args:
+        fundamental_data (pd.DataFrame): Quarterly data containing ``ticker``,
+            ``period_end``, and the date each report became available in
+            ``filing_date``.
+        price_data (pd.DataFrame): Daily data containing ``ticker`` and ``date``.
+
+    Returns:
+        pd.DataFrame: Daily price data matched to the latest available filing for
+            each ticker, with pre-filing fundamental values left as ``NaN``.
+    """
+    require_columns(
+        fundamental_data,
+        {'ticker', 'period_end', 'filing_date'},
+    )
+    require_columns(price_data, {'ticker', 'date'})
+    if price_data.empty or fundamental_data.empty:
+        return price_data.copy()
+
+    fundamentals = fundamental_data.copy()
+    prices = price_data.copy()
+    fundamentals['period_end'] = pd.to_datetime(
+        fundamentals['period_end'], errors='raise'
+    )
+    fundamentals['filing_date'] = pd.to_datetime(
+        fundamentals['filing_date'], errors='raise'
+    )
+    prices['date'] = pd.to_datetime(prices['date'], errors='raise')
+
+    # If a later comparative filing supplies an older missing quarter, prefer
+    # the most recent fiscal period that became available on that filing date.
+    fundamentals = (
+        fundamentals
+        .sort_values(['ticker', 'filing_date', 'period_end'])
+        .drop_duplicates(['ticker', 'filing_date'], keep='last')
+        .sort_values(['filing_date', 'ticker'])
+    )
+    prices = prices.sort_values(['date', 'ticker'])
+
+    aligned_data = pd.merge_asof(
+        prices,
+        fundamentals,
+        by='ticker',
+        left_on='date',
+        right_on='filing_date',
+        direction='backward',
+        allow_exact_matches=True,
+    )
+    return aligned_data.sort_values(['ticker', 'date']).reset_index(drop=True)
+
 def calculate_market_cap(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate capitalization.
 
@@ -190,6 +245,7 @@ def require_columns(data: pd.DataFrame, columns: set[str]) -> None:
         raise ValueError(f'Missing required columns: {", ".join(sorted(missing))}')
 
 __all__ = [
+    'align_data',
     'calculate_market_cap',
     'calculate_returns',
     'drop_invalid_factor',
