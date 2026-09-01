@@ -62,13 +62,13 @@ def short_term_reversal(data: pd.DataFrame) -> pd.DataFrame:
             and ``adjusted_close`` columns.
 
     Returns:
-        pd.DataFrame: Data sorted by ticker and date with non-null ``str`` values.
+        pd.DataFrame: Data sorted by ticker and date with non-null ``st_rev`` values.
     """
     return _calculate_momentum(
         data=data,
         numerator_months=0,
         denominator_months=1,
-        factor='str',
+        factor='st_rev',
     )
 
 def _calculate_momentum(
