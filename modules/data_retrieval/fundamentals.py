@@ -30,6 +30,7 @@ def load_fundamentals(
     end_date: str | date,
     metrics: Sequence[Metric] | None = None,
     identity: str | None = None,
+    history_quarters: int = 5,
 ) -> pd.DataFrame:
     """Load selected quarterly fundamentals and their SEC filing dates for a ticker.
 
@@ -39,13 +40,19 @@ def load_fundamentals(
         end_date (str | date): Inclusive fiscal-period end date in ``YYYY-MM-DD`` format.
         metrics (Sequence[Metric] | None): Metric names to return, or ``None`` for all metrics.
         identity (str | None): SEC identity in ``'Name email@example.com'`` form, or ``None`` to use an environment variable.
+        history_quarters (int): Accounting observations to retain at or before
+            ``start_date``; five provides the latest available quarter plus four
+            preceding observations.
 
     Returns:
-        pd.DataFrame: One row per fiscal quarter with ticker, period_end, filing_date, and requested metric columns.
+        pd.DataFrame: Point-in-time quarterly observations with fiscal period end,
+            filing date, UTC filing timestamp when available, and requested metrics.
     """
     start, end = pd.Timestamp(start_date).normalize(), pd.Timestamp(end_date).normalize()
     if start > end:
         raise ValueError('start_date must be on or before end_date')
+    if history_quarters < 1:
+        raise ValueError('history_quarters must be at least 1')
     requested = list(METRICS) if metrics is None else list(dict.fromkeys(metrics))
     unknown = set(requested).difference(METRICS)
     if unknown:
@@ -61,19 +68,29 @@ def load_fundamentals(
         set_identity(sec_identity)
 
     company = Company(ticker.upper())
+    filing_lookback = start - pd.DateOffset(
+        months=3 * (history_quarters + 2)
+    )
     filings = company.get_filings(
         form=['10-Q', '10-K'], amendments=False,
-        filing_date=(str((start - pd.Timedelta(days=380)).date()), str((end + pd.Timedelta(days=370)).date())),
+        filing_date=(str(filing_lookback.date()), str((end + pd.Timedelta(days=370)).date())),
         sort_by=[('filing_date', 'ascending')],
     )
+    filing_records = list(filings)
+    acceptance_by_date = {
+        pd.Timestamp(filing.filing_date).normalize(): _filing_timestamp(filing)
+        for filing in filing_records
+    }
     observations: list[dict[str, object]] = []
     company_facts: pd.DataFrame | None = None
-    for filing in filings:
+    for filing in filing_records:
         report = filing.obj()
         period_end = _resolve_period_end(report, filing, ticker.upper())
+        filing_date = pd.Timestamp(report.filing_date).normalize()
         row: dict[str, object] = {
             'ticker': ticker.upper(), 'period_end': period_end,
-            'filing_date': pd.Timestamp(report.filing_date).normalize(),
+            'filing_date': filing_date,
+            'filing_timestamp': _filing_timestamp(filing),
             'form': str(getattr(filing, 'form', '')),
         }
         cache: dict[str, pd.DataFrame] = {}
@@ -93,13 +110,17 @@ def load_fundamentals(
                     facts=company_facts,
                     concepts=concepts,
                     period_end=period_end,
-                    filing_date=pd.Timestamp(report.filing_date).normalize(),
+                    filing_date=filing_date,
                     form=str(getattr(filing, 'form', '')),
                 )
                 if pd.notna(value):
                     source = 'company_facts'
                     if fact_filing_date is not None:
                         row['filing_date'] = max(pd.Timestamp(row['filing_date']), fact_filing_date)
+                        row['filing_timestamp'] = acceptance_by_date.get(
+                            pd.Timestamp(row['filing_date']).normalize(),
+                            pd.NaT,
+                        )
             value = _normalize_metric_sign(metric, value)
             has_statement_data = not cache[statement_name].empty or (
                 company_facts is not None and not company_facts.empty
@@ -113,13 +134,67 @@ def load_fundamentals(
         observations.append(row)
 
     result = pd.DataFrame(observations)
-    columns = ['ticker', 'period_end', 'filing_date', *requested]
+    columns = [
+        'ticker', 'period_end', 'filing_date', 'filing_timestamp', *requested
+    ]
     if result.empty:
         return pd.DataFrame(columns=columns)
     result = result.sort_values(['period_end', 'filing_date']).drop_duplicates('period_end', keep='last')
     result = _to_discrete_quarters(result, selected)
-    result = result.loc[result['period_end'].between(start, end)]
+    information_dates = _filing_information_dates(result)
+    result = result.loc[
+        result['period_end'].le(end) & information_dates.le(end)
+    ]
+    information_dates = information_dates.loc[result.index]
+    history = (
+        result.loc[information_dates.le(start)]
+        .sort_values(['period_end', 'filing_date'])
+        .tail(history_quarters)
+    )
+    analysis_filings = result.loc[information_dates.gt(start)]
+    result = (
+        pd.concat([history, analysis_filings], ignore_index=True)
+        .drop_duplicates('period_end', keep='last')
+    )
     return result.reindex(columns=columns).sort_values('period_end').reset_index(drop=True)
+
+def _filing_information_dates(frame: pd.DataFrame) -> pd.Series:
+    """Estimate when filings become usable before mapping them to trading dates.
+
+    Args:
+        frame (pd.DataFrame): Filing observations containing filing dates and UTC
+            acceptance timestamps.
+
+    Returns:
+        pd.Series: Calendar dates adjusted forward one day for post-4 p.m. filings.
+    """
+    filing_dates = pd.to_datetime(frame['filing_date'], errors='coerce').dt.normalize()
+    timestamps = pd.to_datetime(
+        frame['filing_timestamp'], errors='coerce', utc=True
+    ).dt.tz_convert('America/New_York')
+    local_dates = timestamps.dt.tz_localize(None).dt.normalize()
+    information_dates = filing_dates.where(timestamps.isna(), local_dates)
+    after_close = timestamps.notna() & (
+        timestamps.dt.hour.mul(60).add(timestamps.dt.minute) > 16 * 60
+    )
+    return information_dates + pd.to_timedelta(
+        after_close.astype('int64'), unit='D'
+    )
+
+def _filing_timestamp(filing: object) -> pd.Timestamp | None:
+    """Normalize a filing's exact SEC acceptance timestamp to UTC.
+
+    Args:
+        filing (object): Edgartools filing that may expose ``acceptance_datetime``.
+
+    Returns:
+        pd.Timestamp | None: Timezone-aware UTC acceptance timestamp when available.
+    """
+    raw_timestamp = getattr(filing, 'acceptance_datetime', None)
+    timestamp = pd.to_datetime(raw_timestamp, errors='coerce', utc=True)
+    if pd.isna(timestamp):
+        return None
+    return pd.Timestamp(timestamp)
 
 def _normalize_metric_sign(metric: Metric, value: float) -> float:
     """Normalize statement-presentation signs while preserving cash-flow directions.

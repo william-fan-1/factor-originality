@@ -1,6 +1,7 @@
 """Retrieve price-related data."""
 
 import os
+from datetime import date
 
 import pandas as pd
 import yfinance as yf
@@ -9,24 +10,35 @@ from edgar import Company, set_identity
 
 def retrieve_prices(
     ticker: str,
-    start_date: str,
-    end_date: str,
+    start_date: str | date | pd.Timestamp,
+    end_date: str | date | pd.Timestamp,
+    lookback_months: int = 13,
 ) -> pd.DataFrame:
     """Retrieve daily prices, volume, and shares outstanding for a ticker.
 
     Args:
         ticker (str): Yahoo Finance ticker symbol to query.
-        start_date (str): Inclusive start date in '%Y-%m-%d' format.
-        end_date (str): Exclusive end date in a '%Y-%m-%d' format.
+        start_date (str | date | pd.Timestamp): Inclusive analysis start date.
+        end_date (str | date | pd.Timestamp): Exclusive analysis end date.
+        lookback_months (int): Calendar months of price history to retrieve before
+            ``start_date``; 13 supports characteristics requiring 12-month history.
 
     Returns:
-        pd.DataFrame: Daily observations with ticker, date, close,
-            adjusted_close, volume, and shares_outstanding columns.
+        pd.DataFrame: Daily observations from the warm-up start through the exclusive
+            end date with ticker, prices, volume, and shares outstanding.
     """
+    if lookback_months < 0:
+        raise ValueError('lookback_months must be non-negative')
+    analysis_start = pd.Timestamp(start_date).normalize()
+    retrieval_end = pd.Timestamp(end_date).normalize()
+    if analysis_start >= retrieval_end:
+        raise ValueError('start_date must be before end_date')
+    retrieval_start = analysis_start - pd.DateOffset(months=lookback_months)
+
     security = yf.Ticker(ticker)
     history = security.history(
-        start=start_date,
-        end=end_date,
+        start=retrieval_start,
+        end=retrieval_end,
         auto_adjust=False,
         actions=False,
     )
