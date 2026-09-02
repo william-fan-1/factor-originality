@@ -28,8 +28,16 @@ def load_fundamental_data(
     if data.empty:
         return data
 
-    data['period_end'] = pd.to_datetime(data['period_end'], errors='raise')
-    data['filing_date'] = pd.to_datetime(data['filing_date'], errors='raise')
+    data['period_end'] = pd.to_datetime(
+        data['period_end'], errors='raise'
+    ).astype('datetime64[ns]')
+    data['filing_date'] = pd.to_datetime(
+        data['filing_date'], errors='raise'
+    ).astype('datetime64[ns]')
+    if 'filing_timestamp' in data:
+        data['filing_timestamp'] = pd.to_datetime(
+            data['filing_timestamp'], errors='coerce', utc=True
+        )
     return data.sort_values(['ticker', 'period_end', 'filing_date']).reset_index(drop=True)
 
 def load_price_data(
@@ -49,7 +57,9 @@ def load_price_data(
     if data.empty:
         return data
 
-    data['date'] = pd.to_datetime(data['date'], errors='raise')
+    data['date'] = pd.to_datetime(
+        data['date'], errors='raise'
+    ).astype('datetime64[ns]')
     data = data.sort_values(['ticker', 'date']).reset_index(drop=True)
     return _process_data(data)
 
@@ -61,17 +71,18 @@ def align_data(
 
     Args:
         fundamental_data (pd.DataFrame): Quarterly data containing ``ticker``,
-            ``period_end``, and the date each report became available in
-            ``filing_date``.
+            ``period_end``, ``filing_date``, and the exact SEC acceptance time in
+            ``filing_timestamp`` when available.
         price_data (pd.DataFrame): Daily data containing ``ticker`` and ``date``.
 
     Returns:
         pd.DataFrame: Daily price data matched to the latest available filing for
-            each ticker, with pre-filing fundamental values left as ``NaN``.
+            each ticker, including its effective ``available_date`` and leaving
+            pre-filing fundamental values as ``NaN``.
     """
     require_columns(
         fundamental_data,
-        {'ticker', 'period_end', 'filing_date'},
+        {'ticker', 'period_end', 'filing_date', 'filing_timestamp'},
     )
     require_columns(price_data, {'ticker', 'date'})
     if price_data.empty or fundamental_data.empty:
@@ -81,19 +92,32 @@ def align_data(
     prices = price_data.copy()
     fundamentals['period_end'] = pd.to_datetime(
         fundamentals['period_end'], errors='raise'
-    )
+    ).astype('datetime64[ns]')
     fundamentals['filing_date'] = pd.to_datetime(
         fundamentals['filing_date'], errors='raise'
+    ).astype('datetime64[ns]')
+    fundamentals['filing_timestamp'] = pd.to_datetime(
+        fundamentals['filing_timestamp'], errors='coerce', utc=True
     )
-    prices['date'] = pd.to_datetime(prices['date'], errors='raise')
+    prices['date'] = pd.to_datetime(
+        prices['date'], errors='raise'
+    ).astype('datetime64[ns]')
+    fundamentals['available_date'] = _effective_filing_dates(
+        fundamentals=fundamentals,
+        prices=prices,
+    )
+    fundamentals = fundamentals.dropna(subset=['available_date'])
 
     # If a later comparative filing supplies an older missing quarter, prefer
     # the most recent fiscal period that became available on that filing date.
     fundamentals = (
         fundamentals
-        .sort_values(['ticker', 'filing_date', 'period_end'])
-        .drop_duplicates(['ticker', 'filing_date'], keep='last')
-        .sort_values(['filing_date', 'ticker'])
+        .sort_values(
+            ['ticker', 'available_date', 'filing_timestamp', 'period_end'],
+            na_position='first',
+        )
+        .drop_duplicates(['ticker', 'available_date'], keep='last')
+        .sort_values(['available_date', 'ticker'])
     )
     prices = prices.sort_values(['date', 'ticker'])
 
@@ -102,11 +126,56 @@ def align_data(
         fundamentals,
         by='ticker',
         left_on='date',
-        right_on='filing_date',
+        right_on='available_date',
         direction='backward',
         allow_exact_matches=True,
     )
     return aligned_data.sort_values(['ticker', 'date']).reset_index(drop=True)
+
+def _effective_filing_dates(
+    fundamentals: pd.DataFrame,
+    prices: pd.DataFrame,
+) -> pd.Series:
+    """Assign filing availability dates.
+
+    Args:
+        fundamentals (pd.DataFrame): Accounting observations with filing dates and
+            optional UTC acceptance timestamps.
+        prices (pd.DataFrame): Daily security observations defining trading dates.
+
+    Returns:
+        pd.Series: First eligible trading date for every accounting observation.
+    """
+    timestamps = fundamentals['filing_timestamp'].dt.tz_convert(
+        'America/New_York'
+    )
+    after_close = timestamps.notna() & (
+        timestamps.dt.hour.mul(60).add(timestamps.dt.minute) > 16 * 60
+    )
+    candidate_dates = fundamentals['filing_date'].dt.normalize().where(
+        timestamps.isna(),
+        timestamps.dt.tz_localize(None).dt.normalize(),
+    )
+    candidate_dates = candidate_dates + pd.to_timedelta(
+        after_close.astype('int64'), unit='D'
+    )
+
+    available = pd.Series(pd.NaT, index=fundamentals.index, dtype='datetime64[ns]')
+    trading_dates = {
+        ticker: pd.DatetimeIndex(group['date'].dropna().unique()).sort_values()
+        for ticker, group in prices.groupby('ticker', sort=False)
+    }
+    for ticker, group in fundamentals.groupby('ticker', sort=False):
+        dates = trading_dates.get(ticker, pd.DatetimeIndex([]))
+        if dates.empty:
+            continue
+        targets = pd.DatetimeIndex(candidate_dates.loc[group.index])
+        positions = dates.searchsorted(targets, side='left')
+        valid = positions < len(dates)
+        values = np.full(len(group), np.datetime64('NaT'), dtype='datetime64[ns]')
+        values[valid] = dates.to_numpy()[positions[valid]]
+        available.loc[group.index] = values
+    return available
 
 def calculate_market_cap(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate capitalization.
