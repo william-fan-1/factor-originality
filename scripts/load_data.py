@@ -10,7 +10,9 @@ This script is designed to load in tickers from 2015, 2020, 2025
 then save data for each ticker to a cache within the data directory
 for future use (and to not have to recompute every call)
 """
-from collections.abc import Callable
+import argparse
+from collections.abc import Callable, Sequence
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 import sys
 
@@ -59,8 +61,51 @@ def check_cache(
         temporary_path.unlink(missing_ok=True)
     return data
 
-def main() -> None:
-    for year in range(2015, 2026, 5):
+def _cache_ticker(
+    ticker: str,
+    cache_dir: Path,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+) -> str:
+    """Populate price and fundamental caches for one ticker.
+
+    Args:
+        ticker (str): Security ticker to retrieve.
+        cache_dir (Path): Directory in which the ticker caches are stored.
+        start_date (pd.Timestamp): Inclusive analysis start date.
+        end_date (pd.Timestamp): Inclusive analysis end date.
+
+    Returns:
+        str: The successfully cached ticker.
+    """
+    check_cache(
+        cache_path=cache_dir / f'{ticker}_prices.parquet',
+        func=retrieve_prices,
+        ticker=ticker,
+        start_date=start_date,
+        # yfinance uses an exclusive end date.
+        end_date=end_date + pd.Timedelta(days=1),
+    )
+    check_cache(
+        cache_path=cache_dir / f'{ticker}_fundamentals.parquet',
+        func=load_fundamentals,
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return ticker
+
+def main(years: Sequence[int] = (2015,), workers: int = 1) -> None:
+    """Populate five-year raw-data caches for requested cohort years.
+
+    Args:
+        years (Sequence[int]): Starting years of five-year analysis periods.
+        workers (int): Number of tickers to retrieve concurrently.
+
+    Returns:
+        None.
+    """
+    for year in years:
         ticker_path = DATA_DIR / 'tickers' / f'tickers_{year}.csv'
         tickers = pd.read_csv(ticker_path)['Ticker']
 
@@ -77,31 +122,44 @@ def main() -> None:
         )
 
         failed_tickers: list[str] = []
-        for ticker in tqdm(tickers, desc=f'{year}-{year + 4}'):
-            try:
-                check_cache(
-                    cache_path=cache_dir / f'{ticker}_prices.parquet',
-                    func=retrieve_prices,
-                    ticker=ticker,
-                    start_date=start_date,
-                    # yfinance uses an exclusive end date.
-                    end_date=end_date + pd.Timedelta(days=1),
-                )
-
-                # Omitting metrics requests every supported fundamental.
-                check_cache(
-                    cache_path=cache_dir / f'{ticker}_fundamentals.parquet',
-                    func=load_fundamentals,
-                    ticker=ticker,
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            except Exception as error:
-                failed_tickers.append(ticker)
-                tqdm.write(f'FAILED {ticker}: {type(error).__name__}: {error}')
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    _cache_ticker, ticker, cache_dir, start_date, end_date
+                ): ticker
+                for ticker in tickers
+            }
+            for future in tqdm(
+                as_completed(futures), total=len(futures), desc=f'{year}-{year + 4}'
+            ):
+                ticker = futures[future]
+                try:
+                    future.result()
+                except Exception as error:
+                    failed_tickers.append(ticker)
+                    tqdm.write(
+                        f'FAILED {ticker}: {type(error).__name__}: {error}'
+                    )
 
         if failed_tickers:
             print(f'Failed tickers for {year}-{year + 4}: {", ".join(failed_tickers)}')
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        'years',
+        nargs='*',
+        type=int,
+        default=[2015],
+        help='Starting years of five-year periods to populate (default: 2015).',
+    )
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=1,
+        choices=range(1, 9),
+        metavar='1-8',
+        help='Tickers to retrieve concurrently (default: 1).',
+    )
+    arguments = parser.parse_args()
+    main(years=arguments.years, workers=arguments.workers)
