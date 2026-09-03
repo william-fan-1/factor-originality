@@ -6,6 +6,7 @@ from typing import Literal, TypeAlias, TypedDict
 import pandas as pd
 
 from modules.factors.momentum import *
+from modules.factors.quality import *
 from modules.factors.value import *
 
 FactorFunction = Callable[[pd.DataFrame], pd.DataFrame]
@@ -34,6 +35,26 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
     'fcf_to_price': {
         'column': 'fcf_me',
         'func': fcf_to_price,
+        'direction': 'high',
+    },
+    'gross_profit_margin': {
+        'column': 'gp_sales',
+        'func': gross_profit_margin,
+        'direction': 'high',
+    },
+    'gross_profitability': {
+        'column': 'gp_assts',
+        'func': gross_profitability,
+        'direction': 'high',
+    },
+    'operating_profitability': {
+        'column': 'op_be',
+        'func': operating_profitability,
+        'direction': 'high',
+    },
+    'return_on_equity': {
+        'column': 'roe',
+        'func': return_on_equity,
         'direction': 'high',
     },
     'twelve_one_momentum': {
