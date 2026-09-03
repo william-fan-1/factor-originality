@@ -2,7 +2,11 @@
 
 import pandas as pd
 
-from modules.factors.utils import drop_invalid_factor, require_columns
+from modules.factors.utils import (
+    calculate_trailing_sum,
+    drop_invalid_factor,
+    require_columns,
+)
 
 
 def book_to_market(data: pd.DataFrame) -> pd.DataFrame:
@@ -30,24 +34,24 @@ def book_to_market(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def earnings_to_price(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate the canonical earnings-to-price factor.
+    """Calculate earnings yield using trailing-four-quarter net income.
 
     Calculates a company's earnings yield:
 
-    ``E/P = net income / market cap``
+    ``E/P = trailing-four-quarter net income / market cap``
 
     Args:
-        data (pd.DataFrame): Point-in-time data containing ``net_income`` and
-            ``market_cap`` columns.
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, ``net_income``, and ``market_cap`` columns.
 
     Returns:
         pd.DataFrame: Copy of the data with a non-null ``e_pe`` factor column.
     """
-    require_columns(data, {'net_income', 'market_cap'})
+    require_columns(data, {'ticker', 'period_end', 'net_income', 'market_cap'})
     result = data.copy()
-    net_income = pd.to_numeric(result['net_income'], errors='coerce')
+    trailing_net_income = calculate_trailing_sum(result, 'net_income', quarters=4)
     market_cap = pd.to_numeric(result['market_cap'], errors='coerce')
-    result['e_pe'] = net_income / market_cap
+    result['e_pe'] = trailing_net_income / market_cap
     return drop_invalid_factor(result, 'e_pe')
 
 
