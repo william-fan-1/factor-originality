@@ -238,6 +238,54 @@ def calculate_returns(data: pd.DataFrame) -> pd.DataFrame:
     )
     return result
 
+def calculate_trailing_sum(
+    data: pd.DataFrame,
+    column: str,
+    quarters: int = 4,
+) -> pd.Series:
+    """Calculate a trailing sum over unique quarterly observations.
+
+    Args:
+        data (pd.DataFrame): Point-in-time panel containing ``ticker``,
+            ``period_end``, and the quarterly value column.
+        column (str): Quarterly flow column to sum.
+        quarters (int): Number of consecutive reported observations to include.
+
+    Returns:
+        pd.Series: Trailing sums aligned to the original DataFrame index, with
+            ``NaN`` until every required quarterly value is available.
+    """
+    require_columns(data, {'ticker', 'period_end', column})
+    if quarters < 1:
+        raise ValueError('quarters must be at least 1')
+
+    observations = data[['ticker', 'period_end', column]].copy()
+    observations['period_end'] = pd.to_datetime(
+        observations['period_end'], errors='coerce'
+    )
+    observations[column] = pd.to_numeric(observations[column], errors='coerce')
+    observations = (
+        observations
+        .dropna(subset=['ticker', 'period_end'])
+        .sort_values(['ticker', 'period_end'])
+        .drop_duplicates(['ticker', 'period_end'], keep='last')
+    )
+    observations['_trailing_sum'] = (
+        observations
+        .groupby('ticker', sort=False)[column]
+        .rolling(window=quarters, min_periods=quarters)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    trailing = observations.set_index(
+        ['ticker', 'period_end']
+    )['_trailing_sum']
+    original_period_end = pd.to_datetime(data['period_end'], errors='coerce')
+    original_keys = pd.MultiIndex.from_arrays(
+        [data['ticker'], original_period_end], names=['ticker', 'period_end']
+    )
+    return pd.Series(trailing.reindex(original_keys).to_numpy(), index=data.index)
+
 def _process_data(data: pd.DataFrame) -> pd.DataFrame:
     """Process prices.
 
@@ -317,6 +365,7 @@ __all__ = [
     'align_data',
     'calculate_market_cap',
     'calculate_returns',
+    'calculate_trailing_sum',
     'drop_invalid_factor',
     'load_fundamental_data',
     'load_price_data',
