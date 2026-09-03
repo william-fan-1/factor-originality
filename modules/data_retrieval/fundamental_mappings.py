@@ -41,6 +41,7 @@ STANDARD_CONCEPTS: dict[Metric, tuple[str, ...]] = {
     'revenue': ('ElectricUtilityRevenue', 'Revenue'),
     'cost_of_goods_sold': ('CostOfGoodsAndServicesSold',),
     'operating_income': ('OperatingIncomeLoss',),
+    'net_income': ('NetIncomeLoss', 'ProfitLoss'),
     'cash_and_equivalents': ('CashAndMarketableSecurities',),
     'property_plant_equipment': ('PlantPropertyEquipmentNet',),
     'operating_cash_flow': ('NetCashFromOperatingActivities', 'OperatingCashFlow'),
@@ -50,6 +51,15 @@ STANDARD_CONCEPTS: dict[Metric, tuple[str, ...]] = {
     'long_term_debt': ('LongTermDebt',),
 }
 COMPONENT_STANDARD_CONCEPTS: dict[Metric, tuple[str, ...]] = {
+    'shareholders_equity': (
+        'CommonEquity',
+        'AdditionalPaidInCapital',
+        'RetainedEarnings',
+        'AccumulatedOtherComprehensiveIncome',
+        'PreferredStock',
+        'TreasuryStock',
+        'NonControllingInterest',
+    ),
     'depreciation_amortization': ('DepreciationExpense', 'AmortizationOfIntangibles'),
     'short_term_debt': ('ShortTermDebt', 'CurrentPortionOfLongTermDebt'),
 }
@@ -67,7 +77,7 @@ LABEL_PATTERNS: dict[Metric, tuple[str, ...]] = {
         r'^depreciation and amortization expense$',
     ),
     'shareholders_equity': (
-        r"^(?:total )?(?:common )?(?:shareholders|stockholders)(?:'|\u2019)?\s+equity$",
+        r"^(?:total )?(?:common )?(?:shareholders|stockholders)(?:'|’)?\s+equity$",
     ),
     'stock_issuance': (
         r'^proceeds from (?:the )?(?:issuance|sale) of (?:common|treasury) stock.*$',

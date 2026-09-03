@@ -102,7 +102,12 @@ def load_fundamentals(
             value, source, matched_concept = _resolve_metric_value(
                 metric, cache[statement_name], concepts, period_end
             )
-            if pd.isna(value) and cache[statement_name].empty:
+            # A parsed statement can be non-empty but incomplete.  This occurs in
+            # older filings whose presentation linkbase exposes only one section
+            # of a statement (for example, assets without liabilities).  Fall
+            # back at the metric level rather than only when the whole statement
+            # failed to parse.
+            if pd.isna(value):
                 if company_facts is None:
                     company_facts = _load_company_facts(company)
                 value, matched_concept, fact_filing_date = _resolve_company_fact(
@@ -122,11 +127,6 @@ def load_fundamentals(
                             pd.NaT,
                         )
             value = _normalize_metric_sign(metric, value)
-            has_statement_data = not cache[statement_name].empty or (
-                company_facts is not None and not company_facts.empty
-            )
-            if metric in {'stock_issuance', 'stock_repurchases', 'short_term_debt', 'long_term_debt', 'capital_expenditures'} and pd.isna(value) and has_statement_data:
-                value, source = 0.0, 'default_zero'
             row[metric] = value
             row[f'_{metric}_source'] = source
             row[f'_{metric}_concept'] = matched_concept
@@ -433,6 +433,7 @@ def _resolve_metric_value(
     """
     if frame.empty or 'concept' not in frame:
         return float('nan'), 'missing', None
+    prefer_ytd = METRICS[metric][0] == 'cash_flow_statement'
     eligible = frame
     if 'abstract' in eligible:
         eligible = eligible.loc[~eligible['abstract'].fillna(False).astype(bool)]
@@ -440,7 +441,9 @@ def _resolve_metric_value(
     for concept in concepts:
         matches = eligible.loc[names.eq(concept)]
         if not matches.empty:
-            value = _extract_period_value(matches, frame, period_end)
+            value = _extract_period_value(
+                matches, frame, period_end, prefer_ytd=prefer_ytd
+            )
             if pd.notna(value):
                 return value, 'reported', str(matches.iloc[0]['concept'])
 
@@ -450,14 +453,18 @@ def _resolve_metric_value(
         for concept in STANDARD_CONCEPTS.get(metric, ()):
             matches = eligible.loc[standardized.eq(concept)]
             if not matches.empty:
-                value = _extract_period_value(matches, frame, period_end)
+                value = _extract_period_value(
+                    matches, frame, period_end, prefer_ytd=prefer_ytd
+                )
                 if pd.notna(value):
                     return value, 'standardized', str(matches.iloc[0]['concept'])
 
         for concept in COMPONENT_STANDARD_CONCEPTS.get(metric, ()):
             matches = eligible.loc[standardized.eq(concept)]
             if not matches.empty:
-                value = _extract_period_value(matches, frame, period_end)
+                value = _extract_period_value(
+                    matches, frame, period_end, prefer_ytd=prefer_ytd
+                )
                 if pd.notna(value):
                     component_values[str(matches.iloc[0]['concept'])] = value
 
@@ -469,21 +476,27 @@ def _resolve_metric_value(
             mask &= ~labels.str.contains(re.escape(term), case=False, na=False)
         matches = eligible.loc[mask]
         if not matches.empty:
-            value = _extract_period_value(matches, frame, period_end)
+            value = _extract_period_value(
+                matches, frame, period_end, prefer_ytd=prefer_ytd
+            )
             if pd.notna(value):
                 return value, 'regex', str(matches.iloc[0]['concept'])
 
     for pattern in COMPONENT_LABEL_PATTERNS.get(metric, ()):
         matches = eligible.loc[labels.str.match(pattern, case=False, na=False)]
         if not matches.empty:
-            value = _extract_period_value(matches, frame, period_end)
+            value = _extract_period_value(
+                matches, frame, period_end, prefer_ytd=prefer_ytd
+            )
             if pd.notna(value):
                 component_values[str(matches.iloc[0]['concept'])] = value
     raw_concepts = eligible['concept'].fillna('').map(str)
     for pattern in COMPONENT_CONCEPT_PATTERNS.get(metric, ()):
         matches = eligible.loc[raw_concepts.str.match(pattern, case=False, na=False)]
         if not matches.empty:
-            value = _extract_period_value(matches, frame, period_end)
+            value = _extract_period_value(
+                matches, frame, period_end, prefer_ytd=prefer_ytd
+            )
             if pd.notna(value):
                 component_values[str(matches.iloc[0]['concept'])] = value
     if component_values:
@@ -494,6 +507,7 @@ def _extract_period_value(
     rows: pd.DataFrame,
     frame: pd.DataFrame,
     period_end: pd.Timestamp,
+    prefer_ytd: bool = False,
 ) -> float:
     """Extract the best period value from one or more matched statement rows.
 
@@ -501,6 +515,7 @@ def _extract_period_value(
         rows (pd.DataFrame): Candidate statement rows for one metric.
         frame (pd.DataFrame): Full statement used to identify value columns.
         period_end (pd.Timestamp): Filing period end used to rank value columns.
+        prefer_ytd (bool): Whether year-to-date columns should precede discrete-quarter columns.
 
     Returns:
         float: Best numeric period value, or ``NaN`` when none exists.
@@ -509,8 +524,14 @@ def _extract_period_value(
     dated = [column for column in candidates if period_end.strftime('%Y-%m-%d') in str(column)]
     candidates = dated or candidates
     quarter = [column for column in candidates if re.search(r'\bQ[1-4]\b', str(column), re.I)]
+    year_to_date = [
+        column for column in candidates
+        if re.search(r'\bYTD\b', str(column), re.I)
+    ]
+    preferred = year_to_date if prefer_ytd else quarter
+    ordered = preferred + [column for column in candidates if column not in preferred]
     for _, row in rows.iterrows():
-        for column in quarter or candidates:
+        for column in ordered:
             value = pd.to_numeric(row[column], errors='coerce')
             if pd.notna(value):
                 return float(value)
