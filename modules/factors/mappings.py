@@ -5,6 +5,7 @@ from typing import Literal, TypeAlias, TypedDict
 
 import pandas as pd
 
+from modules.factors.investment import *
 from modules.factors.momentum import *
 from modules.factors.quality import *
 from modules.factors.value import *
@@ -22,6 +23,26 @@ class FactorDefinition(TypedDict):
 
 
 FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
+    'asset_growth': {
+        'column': 'asst_grwth',
+        'func': asset_growth,
+        'direction': 'low',
+    },
+    'capex_growth': {
+        'column': 'capex_gr1',
+        'func': capex_growth,
+        'direction': 'low',
+    },
+    'capex_change': {
+        'column': 'capex_gr1_a',
+        'func': capex_change,
+        'direction': 'low',
+    },
+    'noa_change': {
+        'column': 'noa_gr1_a',
+        'func': noa_change,
+        'direction': 'low',
+    },
     'book_to_market': {
         'column': 'be_me',
         'func': book_to_market,
