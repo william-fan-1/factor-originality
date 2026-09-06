@@ -1,4 +1,4 @@
-Ticker,Name
+Ticker,Name,HistoricalTicker
 MMM,3M Co.
 ABT,Abbott Laboratories
 ABBV,"AbbVie, Inc."
@@ -168,7 +168,7 @@ EXPD,"Expeditors International of Washington, Inc."
 EXR,"Extra Space Storage, Inc. REIT"
 XOM,Exxon Mobil Corp.
 FFIV,"F5 Networks, Inc.(a)"
-META,"Facebook, Inc. ClassÂ A(a)"
+META,"Facebook, Inc. ClassÂ A(a)",FB
 FAST,Fastenal Co.
 FRT,Federal Realty Investment Trust REIT
 FDX,FedEx Corp.
