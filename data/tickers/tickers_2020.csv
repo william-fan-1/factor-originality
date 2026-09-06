@@ -19,7 +19,7 @@ ALLE,Allegion PLC
 BFH,Bread Financial Holdings
 LNT,Alliant Energy Corp.
 ALL,Allstate Corp.
-GOOG,"Alphabet, Inc. ClassÂ A(a)"
+GOOGL,"Alphabet, Inc. ClassÂ A(a)"
 GOOG,"Alphabet, Inc. Class C(a)"
 MO,"Altria Group, Inc."
 AMZN,"Amazon.com, Inc.(a)"
@@ -53,12 +53,11 @@ ATO,Atmos Energy Corp.
 ADSK,"Autodesk, Inc.(a)"
 ADP,"Automatic Data Processing, Inc."
 AZO,"AutoZone, Inc.(a)"
-AVB,"AvalonBay Communities, Inc. REIT"
 AVY,Avery Dennison Corp.
 BKR,Baker Hughes a GE Co.
 BALL,Ball Corp.
 BAC,Bank of America Corp.
-BK,Bank of New York Mellon Corp.
+BNY,Bank of New York Mellon Corp.
 BAX,"Baxter International, Inc."
 BDX,Becton Dickinson and Co.
 BRK-B,"Berkshire Hathaway, Inc."
@@ -149,14 +148,12 @@ EBAY,"eBay, Inc."
 ECL,"Ecolab, Inc."
 EIX,Edison International
 EW,Edwards Lifesciences Corp.(a)
-EA,"Electronic Arts, Inc.(a)"
 LLY,Eli LillyÂ & Co.
 EMR,Emerson Electric Co.
 ETR,Entergy Corp.
 EOG,"EOG Resources, Inc."
 EFX,"Equifax, Inc."
 EQIX,"Equinix, Inc. REIT"
-EQR,Equity Residential REIT
 ESS,"Essex Property Trust, Inc. REIT"
 EL,"Estee Lauder Cos., Inc. ClassÂ A"
 EG,"Everest Re Group, Ltd."
@@ -183,7 +180,7 @@ F,Ford Motor Co.
 FTNT,"Fortinet, Inc.(a)"
 FTV,Fortive Corp.
 FBIN,"Fortune Brands HomeÂ & Security, Inc."
-FOX,Fox Corp. ClassÂ A
+FOXA,Fox Corp. ClassÂ A
 FOX,Fox Corp. ClassÂ B(a)
 BEN,"Franklin Resources, Inc."
 FCX,"Freeport-McMoRan, Inc."
@@ -258,7 +255,6 @@ LH,Laboratory Corp. of America Holdings(a)
 LRCX,Lam Research Corp.
 LW,"Lamb Weston Holdings, Inc."
 LVS,Las Vegas Sands Corp.
-LEG,"LeggettÂ & Platt, Inc."
 LDOS,"Leidos Holdings, Inc."
 LEN,Lennar Corp. ClassÂ A
 LNC,Lincoln National Corp.
@@ -304,7 +300,7 @@ NOV,"National Oilwell Varco, Inc."
 NTAP,"NetApp, Inc."
 NFLX,"Netflix, Inc.(a)"
 NEM,Newmont Corp.
-NWS,News Corp. ClassÂ A
+NWSA,News Corp. ClassÂ A
 NWS,News Corp. ClassÂ B
 NEE,"NextEra Energy, Inc."
 NKE,"NIKE, Inc. ClassÂ B"
@@ -388,7 +384,7 @@ STT,State Street Corp.(c)
 STE,STERIS PLC
 SYK,Stryker Corp.
 SYF,Synchrony Financial
-SYY,"Synopsys, Inc.(a)"
+SNPS,"Synopsys, Inc.(a)"
 SYY,Sysco Corp.
 TROW,"T Rowe Price Group, Inc."
 TMUS,"T-MobileÂ US, Inc.(a)"
@@ -411,7 +407,7 @@ TSN,"Tyson Foods, Inc. ClassÂ A"
 UDR,"UDR, Inc. REIT"
 ULTA,"Ulta Salon CosmeticsÂ & Fragrance, Inc.(a)"
 UAA,"Under Armour, Inc. ClassÂ A(a)"
-UAA,"Under Armour, Inc. ClassÂ C(a)"
+UA,"Under Armour, Inc. ClassÂ C(a)"
 UNP,Union Pacific Corp.
 UAL,"United Continental Holdings, Inc.(a)"
 UPS,"United Parcel Service, Inc. ClassÂ B"
