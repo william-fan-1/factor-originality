@@ -19,7 +19,12 @@ METRICS: dict[Metric, tuple[str, tuple[str, ...]]] = {
     'total_assets': ('balance_sheet', ('Assets',)),
     'total_liabilities': ('balance_sheet', ('Liabilities',)),
     'shareholders_equity': ('balance_sheet', ('StockholdersEquity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest')),
-    'cash_and_equivalents': ('balance_sheet', ('CashAndCashEquivalentsAtCarryingValue', 'CashEquivalentsAtCarryingValue', 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents')),
+    'cash_and_equivalents': ('balance_sheet', (
+        'CashAndCashEquivalentsAtCarryingValue',
+        'CashEquivalentsAtCarryingValue',
+        'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
+        'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations',
+    )),
     'current_assets': ('balance_sheet', ('AssetsCurrent',)),
     'current_liabilities': ('balance_sheet', ('LiabilitiesCurrent',)),
     'property_plant_equipment': ('balance_sheet', ('PropertyPlantAndEquipmentNet',)),
