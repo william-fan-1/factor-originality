@@ -83,8 +83,45 @@ def calculate_factor_return_data(
     )
 
 
+def concatenate_factor_return_periods(
+    periods: Sequence[pd.DataFrame],
+) -> pd.DataFrame:
+    """Concatenate non-overlapping factor-return periods into one time series.
+
+    Args:
+        periods (Sequence[pd.DataFrame]): Factor-return panels containing a unique
+            ``date`` column and one or more factor columns.
+
+    Returns:
+        pd.DataFrame: Chronologically sorted factor returns spanning every period.
+    """
+    if not periods:
+        return pd.DataFrame(columns=['date'])
+
+    frames: list[pd.DataFrame] = []
+    for index, period in enumerate(periods):
+        if 'date' not in period:
+            raise ValueError(f'Factor-return period {index} is missing date')
+        frame = period.copy()
+        frame['date'] = pd.to_datetime(frame['date'], errors='raise')
+        if frame['date'].duplicated().any():
+            raise ValueError(f'Factor-return period {index} contains duplicate dates')
+        frames.append(frame)
+
+    result = pd.concat(frames, ignore_index=True, sort=False)
+    duplicate_dates = result.loc[result['date'].duplicated(keep=False), 'date']
+    if not duplicate_dates.empty:
+        examples = ', '.join(
+            timestamp.strftime('%Y-%m-%d')
+            for timestamp in duplicate_dates.drop_duplicates().sort_values().head(5)
+        )
+        raise ValueError(f'Factor-return periods overlap on dates including {examples}')
+    return result.sort_values('date').reset_index(drop=True)
+
+
 __all__ = [
     'calculate_factor_return_data',
+    'concatenate_factor_return_periods',
     'load_aligned_factor_data',
     'load_tickers',
 ]
