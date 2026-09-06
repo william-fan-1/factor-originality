@@ -78,6 +78,8 @@ def calculate_factor_return_data(
         .sort_index()
         .rename_axis('date')
         .reset_index()
+        .loc[lambda frame: frame['date'].ge(pd.Timestamp(year=year, month=1, day=1))]
+        .reset_index(drop=True)
     )
 
 
