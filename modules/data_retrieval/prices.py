@@ -13,6 +13,7 @@ def retrieve_prices(
     start_date: str | date | pd.Timestamp,
     end_date: str | date | pd.Timestamp,
     lookback_months: int = 13,
+    historical_ticker: str | None = None,
 ) -> pd.DataFrame:
     """Retrieve daily prices, volume, and shares outstanding for a ticker.
 
@@ -22,6 +23,7 @@ def retrieve_prices(
         end_date (str | date | pd.Timestamp): Exclusive analysis end date.
         lookback_months (int): Calendar months of price history to retrieve before
             ``start_date``; 13 supports characteristics requiring 12-month history.
+        historical_ticker (str | None): Prior ticker used only to supplement share history.
 
     Returns:
         pd.DataFrame: Daily observations from the warm-up start through the exclusive
@@ -52,6 +54,7 @@ def retrieve_prices(
     result['shares_outstanding'] = _get_shares_outstanding(
         security,
         result.index,
+        historical_ticker=historical_ticker,
     )
     result.insert(0, 'date', result.index)
     result.insert(0, 'ticker', ticker)
@@ -60,12 +63,14 @@ def retrieve_prices(
 def _get_shares_outstanding(
     security: yf.Ticker,
     dates: pd.DatetimeIndex,
+    historical_ticker: str | None = None,
 ) -> pd.Series:
     """Align yfinance share-count data with the retrieved trading dates.
 
     Args:
         security (yf.Ticker): Yahoo Finance ticker object to query.
         dates (pd.DatetimeIndex): Trading dates to which share counts are aligned.
+        historical_ticker (str | None): Prior ticker used to supplement Yahoo shares.
 
     Returns:
         pd.Series: Shares outstanding indexed by the requested trading dates.
@@ -85,6 +90,26 @@ def _get_shares_outstanding(
     yahoo_aligned = yahoo_shares.reindex(dates, method='ffill')
     if yahoo_aligned.notna().all():
         return yahoo_aligned
+
+    if historical_ticker is not None:
+        historical_security = yf.Ticker(historical_ticker)
+        historical_yahoo_shares = historical_security.get_shares_full(
+            start=dates.min() - pd.Timedelta(days=365),
+            end=dates.max() + pd.Timedelta(days=1),
+        )
+        if historical_yahoo_shares is not None:
+            historical_yahoo_shares = _normalize_share_series(
+                historical_yahoo_shares
+            )
+            yahoo_shares = pd.concat(
+                [historical_yahoo_shares, yahoo_shares]
+            ).sort_index()
+            yahoo_shares = yahoo_shares[
+                ~yahoo_shares.index.duplicated(keep='last')
+            ]
+            yahoo_aligned = yahoo_shares.reindex(dates, method='ffill')
+            if yahoo_aligned.notna().all():
+                return yahoo_aligned
 
     sec_shares = _get_sec_shares_outstanding(
         ticker=security.ticker,
