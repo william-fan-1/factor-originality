@@ -66,6 +66,8 @@ def _cache_ticker(
     cache_dir: Path,
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
+    history_quarters: int = 9,
+    historical_ticker: str | None = None,
 ) -> str:
     """Populate price and fundamental caches for one ticker.
 
@@ -74,6 +76,8 @@ def _cache_ticker(
         cache_dir (Path): Directory in which the ticker caches are stored.
         start_date (pd.Timestamp): Inclusive analysis start date.
         end_date (pd.Timestamp): Inclusive analysis end date.
+        history_quarters (int): Fundamental quarters retained through the analysis start.
+        historical_ticker (str | None): Prior ticker used to supplement share history.
 
     Returns:
         str: The successfully cached ticker.
@@ -82,9 +86,12 @@ def _cache_ticker(
         cache_path=cache_dir / f'{ticker}_prices.parquet',
         func=retrieve_prices,
         ticker=ticker,
-        start_date=start_date,
+        # Two years expose all eight quarters required by year-over-year TTM
+        # signals after fundamentals are aligned to daily observations.
+        start_date=start_date - pd.DateOffset(years=2),
         # yfinance uses an exclusive end date.
         end_date=end_date + pd.Timedelta(days=1),
+        historical_ticker=historical_ticker,
     )
     check_cache(
         cache_path=cache_dir / f'{ticker}_fundamentals.parquet',
@@ -92,6 +99,7 @@ def _cache_ticker(
         ticker=ticker,
         start_date=start_date,
         end_date=end_date,
+        history_quarters=history_quarters,
     )
     return ticker
 
@@ -107,7 +115,18 @@ def main(years: Sequence[int] = (2015,), workers: int = 1) -> None:
     """
     for year in years:
         ticker_path = DATA_DIR / 'tickers' / f'tickers_{year}.csv'
-        tickers = pd.read_csv(ticker_path)['Ticker']
+        ticker_data = pd.read_csv(ticker_path).dropna(subset=['Ticker'])
+        ticker_data['Ticker'] = ticker_data['Ticker'].astype(str)
+        ticker_data = ticker_data.drop_duplicates('Ticker', keep='first')
+        historical = (
+            ticker_data['HistoricalTicker']
+            if 'HistoricalTicker' in ticker_data
+            else pd.Series(index=ticker_data.index, dtype='object')
+        )
+        ticker_records = [
+            (ticker, None if pd.isna(alias) else str(alias))
+            for ticker, alias in zip(ticker_data['Ticker'], historical)
+        ]
 
         start_date = pd.Timestamp(year=year, month=1, day=1)
         end_date = pd.Timestamp(year=year + 4, month=12, day=31)
@@ -125,9 +144,15 @@ def main(years: Sequence[int] = (2015,), workers: int = 1) -> None:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = {
                 executor.submit(
-                    _cache_ticker, ticker, cache_dir, start_date, end_date
+                    _cache_ticker,
+                    ticker,
+                    cache_dir,
+                    start_date,
+                    end_date,
+                    9,
+                    historical_ticker,
                 ): ticker
-                for ticker in tickers
+                for ticker, historical_ticker in ticker_records
             }
             for future in tqdm(
                 as_completed(futures), total=len(futures), desc=f'{year}-{year + 4}'
