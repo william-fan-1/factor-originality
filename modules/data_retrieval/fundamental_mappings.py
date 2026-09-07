@@ -22,6 +22,7 @@ METRICS: dict[Metric, tuple[str, tuple[str, ...]]] = {
     'cash_and_equivalents': ('balance_sheet', (
         'CashAndCashEquivalentsAtCarryingValue',
         'CashEquivalentsAtCarryingValue',
+        'Cash',
         'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
         'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations',
     )),
