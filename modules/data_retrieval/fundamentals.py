@@ -282,12 +282,12 @@ def _resolve_period_end(report: object, filing: object, ticker: str) -> pd.Times
                 timestamp = _valid_timestamp(match)
                 if timestamp is not None:
                     statement_dates.append(timestamp)
-    if statement_dates:
-        return max(statement_dates)
-    if fact_dates:
-        return fact_dates[0]
     if metadata_dates:
         return metadata_dates[0]
+    if fact_dates:
+        return fact_dates[0]
+    if statement_dates:
+        return max(statement_dates)
 
     accession = getattr(filing, 'accession_no', 'unknown')
     form = getattr(filing, 'form', 'unknown')
