@@ -1,4 +1,4 @@
-Ticker,Name
+Ticker,Name,HistoricalTicker
 MMM,3M Co.
 ABT,Abbott Laboratories
 ABBV,"AbbVie, Inc."
@@ -129,7 +129,7 @@ EXPE,"Expedia, Inc."
 EXPD,"Expeditors International of Washington, Inc."
 XOM,Exxon Mobil Corp.
 FFIV,"F5 Networks, Inc.(a)"
-META,"Facebook, Inc. (Class A)(a)"
+META,"Facebook, Inc. (Class A)(a)",FB
 FAST,Fastenal Co.
 FDX,FedEx Corp.
 FIS,"Fidelity National Information Services, Inc."
