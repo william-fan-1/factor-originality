@@ -78,6 +78,66 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
         'func': return_on_equity,
         'direction': 'high',
     },
+    'capital_turnover': {
+        'column': 'cap_to',
+        'func': capital_turnover,
+        'direction': 'high',
+    },
+    'cbop_to_assets': {
+        'column': 'cbop_assts',
+        'func': cbop_to_assets,
+        'direction': 'high',
+    },
+    'cbop_to_lagged_assets': {
+        'column': 'cbop_assts_l1',
+        'func': cbop_to_lagged_assets,
+        'direction': 'high',
+    },
+    'd_gross_margin_minus_d_sales': {
+        'column': 'dgp_dsale',
+        'func': d_gross_margin_minus_d_sales,
+        'direction': 'high',
+    },
+    'gross_profitability_lagged': {
+        'column': 'gp_assts_l1',
+        'func': gross_profitability_lagged,
+        'direction': 'high',
+    },
+    'consecutive_earnings_increases': {
+        'column': 'ni_inc',
+        'func': consecutive_earnings_increases,
+        'direction': 'high',
+    },
+    'quarterly_return_on_assets': {
+        'column': 'ni_assts_q',
+        'func': quarterly_return_on_assets,
+        'direction': 'high',
+    },
+    'operating_profit_to_assets': {
+        'column': 'op_assts',
+        'func': operating_profit_to_assets,
+        'direction': 'high',
+    },
+    'operating_profit_to_lagged_assets': {
+        'column': 'op_assts_l1',
+        'func': operating_profit_to_lagged_assets,
+        'direction': 'high',
+    },
+    'operating_leverage': {
+        'column': 'opex_assts',
+        'func': operating_leverage,
+        'direction': 'high',
+    },
+    'qmj_profitability': {
+        'column': 'qmj_prof',
+        'func': qmj_profitability,
+        'direction': 'high',
+    },
+    'assets_turnover': {
+        'column': 'assts_to',
+        'func': assets_turnover,
+        'direction': 'high',
+    },
     'twelve_one_momentum': {
         'column': 'mom_12_1',
         'func': twelve_one_momentum,
