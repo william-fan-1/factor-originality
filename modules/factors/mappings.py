@@ -93,6 +93,31 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
         'func': short_term_reversal,
         'direction': 'low',
     },
+    'price_to_high_252d': {
+        'column': 'prc_high_252',
+        'func': price_to_high_252d,
+        'direction': 'high',
+    },
+    'three_one_momentum': {
+        'column': 'mom_3_1',
+        'func': three_one_momentum,
+        'direction': 'high',
+    },
+    'six_one_momentum': {
+        'column': 'mom_6_1',
+        'func': six_one_momentum,
+        'direction': 'high',
+    },
+    'nine_one_momentum': {
+        'column': 'mom_9_1',
+        'func': nine_one_momentum,
+        'direction': 'high',
+    },
+    'eleven_one_seasonality_nonannual': {
+        'column': 'seas_11_1na',
+        'func': eleven_one_seasonality_nonannual,
+        'direction': 'high',
+    },
 }
 
 
