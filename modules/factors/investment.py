@@ -162,5 +162,202 @@ def noa_change(data: pd.DataFrame) -> pd.DataFrame:
     result['noa_gr1_a'] = (net_operating_assets - prior_noa) / assets
     return drop_invalid_factor(result, 'noa_gr1_a')
 
+def common_equity_change(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate change in common equity scaled by assets.
 
-__all__ = ['asset_growth', 'capex_change', 'capex_growth', 'noa_change']
+    Construction:
+        ``(shareholders_equity_t - shareholders_equity_t-4q) / total_assets_t``
+
+    Required cached columns:
+        ticker, period_end, shareholders_equity, total_assets
+
+    Point-in-time handling:
+        Use only financial statements whose ``filing_timestamp`` is available by the
+        measurement date. Quarterly accounting lags refer to unique fiscal quarters;
+        flow variables are TTM sums when the JKP characteristic is annual. Market
+        equity is ``close * shares_outstanding`` (or the PIT-equivalent market-cap
+        field after the price/fundamental merge).
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, ``shareholders_equity``, and ``total_assets``.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``be_gr1_a`` factor column.
+    """
+    require_columns(
+        data, {'ticker', 'period_end', 'shareholders_equity', 'total_assets'}
+    )
+    result = data.copy()
+    equity = pd.to_numeric(result['shareholders_equity'], errors='coerce')
+    assets = pd.to_numeric(result['total_assets'], errors='coerce')
+    lagged_equity = lag_quarterly_values(result, equity, quarters=4)
+    result['be_gr1_a'] = (equity - lagged_equity) / assets
+    return drop_invalid_factor(result, 'be_gr1_a')
+
+
+def coa_change(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate change in current operating assets.
+
+    Construction:
+        ``(COA_t - COA_t-4q) / total_assets_t, where COA = current_assets - cash_and_equivalents``
+
+    Required cached columns:
+        ticker, period_end, current_assets, cash_and_equivalents, total_assets
+
+    Point-in-time handling:
+        Use only financial statements whose ``filing_timestamp`` is available by the
+        measurement date. Quarterly accounting lags refer to unique fiscal quarters;
+        flow variables are TTM sums when the JKP characteristic is annual. Market
+        equity is ``close * shares_outstanding`` (or the PIT-equivalent market-cap
+        field after the price/fundamental merge).
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, ``current_assets``, ``cash_and_equivalents``, and
+            ``total_assets``.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``coa_gr1_a`` factor column.
+    """
+    require_columns(
+        data,
+        {
+            'ticker', 'period_end', 'current_assets',
+            'cash_and_equivalents', 'total_assets',
+        },
+    )
+    result = data.copy()
+    current_assets = pd.to_numeric(result['current_assets'], errors='coerce')
+    cash = pd.to_numeric(result['cash_and_equivalents'], errors='coerce')
+    assets = pd.to_numeric(result['total_assets'], errors='coerce')
+    current_operating_assets = current_assets - cash
+    lagged_coa = lag_quarterly_values(
+        result, current_operating_assets, quarters=4
+    )
+    result['coa_gr1_a'] = (current_operating_assets - lagged_coa) / assets
+    return drop_invalid_factor(result, 'coa_gr1_a')
+
+
+def col_change(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate change in current operating liabilities.
+
+    Construction:
+        ``(COL_t - COL_t-4q) / total_assets_t, where COL = current_liabilities - short_term_debt``
+
+    Required cached columns:
+        ticker, period_end, current_liabilities, short_term_debt, total_assets
+
+    Point-in-time handling:
+        Use only financial statements whose ``filing_timestamp`` is available by the
+        measurement date. Quarterly accounting lags refer to unique fiscal quarters;
+        flow variables are TTM sums when the JKP characteristic is annual. Market
+        equity is ``close * shares_outstanding`` (or the PIT-equivalent market-cap
+        field after the price/fundamental merge).
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, ``current_liabilities``, ``short_term_debt``, and
+            ``total_assets``.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``col_gr1_a`` factor column.
+    """
+    require_columns(
+        data,
+        {
+            'ticker', 'period_end', 'current_liabilities',
+            'short_term_debt', 'total_assets',
+        },
+    )
+    result = data.copy()
+    current_liabilities = pd.to_numeric(
+        result['current_liabilities'], errors='coerce'
+    )
+    short_term_debt = pd.to_numeric(
+        result['short_term_debt'], errors='coerce'
+    )
+    assets = pd.to_numeric(result['total_assets'], errors='coerce')
+    current_operating_liabilities = current_liabilities - short_term_debt
+    lagged_col = lag_quarterly_values(
+        result, current_operating_liabilities, quarters=4
+    )
+    result['col_gr1_a'] = (current_operating_liabilities - lagged_col) / assets
+    return drop_invalid_factor(result, 'col_gr1_a')
+
+
+def sales_growth(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate one-year sales growth.
+
+    Construction:
+        ``TTM revenue_t / TTM revenue_t-4q - 1``
+
+    Required cached columns:
+        ticker, period_end, revenue
+
+    Point-in-time handling:
+        Use only financial statements whose ``filing_timestamp`` is available by the
+        measurement date. Quarterly accounting lags refer to unique fiscal quarters;
+        flow variables are TTM sums when the JKP characteristic is annual. Market
+        equity is ``close * shares_outstanding`` (or the PIT-equivalent market-cap
+        field after the price/fundamental merge).
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, and ``revenue``.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``sale_grwth`` factor column.
+    """
+    require_columns(data, {'ticker', 'period_end', 'revenue'})
+    result = data.copy()
+    revenue = calculate_trailing_sum(result, 'revenue', quarters=4)
+    lagged_revenue = lag_quarterly_values(result, revenue, quarters=4)
+    result['sale_grwth'] = revenue / lagged_revenue - 1
+    return drop_invalid_factor(result, 'sale_grwth')
+
+
+def quarterly_sales_growth(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate one-quarter sales growth.
+
+    Construction:
+        ``revenue_q,t / revenue_q,t-1q - 1``
+
+    Required cached columns:
+        ticker, period_end, revenue
+
+    Point-in-time handling:
+        Use only financial statements whose ``filing_timestamp`` is available by the
+        measurement date. Quarterly accounting lags refer to unique fiscal quarters;
+        flow variables are TTM sums when the JKP characteristic is annual. Market
+        equity is ``close * shares_outstanding`` (or the PIT-equivalent market-cap
+        field after the price/fundamental merge).
+
+    Implementation notes:
+        Use raw quarterly revenue rather than a TTM sum.
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker``,
+            ``period_end``, and quarterly ``revenue``.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``sale_grwth_q`` factor column.
+    """
+    require_columns(data, {'ticker', 'period_end', 'revenue'})
+    result = data.copy()
+    revenue = pd.to_numeric(result['revenue'], errors='coerce')
+    lagged_revenue = lag_quarterly_values(result, revenue, quarters=1)
+    result['sale_grwth_q'] = revenue / lagged_revenue - 1
+    return drop_invalid_factor(result, 'sale_grwth_q')
+
+__all__ = [
+    'asset_growth',
+    'capex_change',
+    'capex_growth',
+    'coa_change',
+    'col_change',
+    'common_equity_change',
+    'noa_change',
+    'quarterly_sales_growth',
+    'sales_growth',
+]

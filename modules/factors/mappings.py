@@ -59,6 +59,31 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
         'func': noa_change,
         'direction': 'low',
     },
+    'common_equity_change': {
+        'column': 'be_gr1_a',
+        'func': common_equity_change,
+        'direction': 'low',
+    },
+    'coa_change': {
+        'column': 'coa_gr1_a',
+        'func': coa_change,
+        'direction': 'low',
+    },
+    'col_change': {
+        'column': 'col_gr1_a',
+        'func': col_change,
+        'direction': 'high',
+    },
+    'sales_growth': {
+        'column': 'sale_grwth',
+        'func': sales_growth,
+        'direction': 'low',
+    },
+    'quarterly_sales_growth': {
+        'column': 'sale_grwth_q',
+        'func': quarterly_sales_growth,
+        'direction': 'high',
+    },
     'book_to_market': {
         'column': 'be_me',
         'func': book_to_market,
