@@ -10,13 +10,17 @@ from modules.factors.utils import (
 
 
 def asset_growth(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate the canonical asset growth factor. 
+    """Calculate the canonical annual asset-growth factor.
 
-    Calculates the yearly change in total assets divided by total assets 
-    from the previous period. The direction is reversed due to low asset 
-    growth historically outperforming higher asset growth:
+    Construction:
+        ``Asset growth = A(t) / A(t-4) - 1``
 
-    ``Asset Growth = A*(t) / A*(t - 4) - 1``
+    Required cached columns:
+        ``ticker``, ``period_end``, and ``total_assets``.
+
+    Point-in-time handling:
+        Total assets are point-in-time balance-sheet values, and ``t-4`` refers
+        to four unique fiscal-quarter observations earlier.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -34,14 +38,17 @@ def asset_growth(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def capex_growth(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate the canonical CapEx growth factor. The direction 
-    is reversed due to low CapEx growth historically outperforming 
-    higher CapEx growth:
+    """Calculate the canonical annual capital-expenditure growth factor.
 
-    Calculates the yearly change in TTM CapEx divided by TTM CapEx 
-    from the previous period:
+    Construction:
+        ``CapEx growth = TTM CapEx(t) / TTM CapEx(t-4) - 1``
 
-    ``CapEx Growth = TTM CE*(t) / TTM CE*(t - 4) - 1``
+    Required cached columns:
+        ``ticker``, ``period_end``, and ``capital_expenditures``.
+
+    Point-in-time handling:
+        Quarterly CapEx magnitudes are summed over four unique fiscal quarters,
+        and the comparison value is lagged four fiscal quarters.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -65,13 +72,19 @@ def capex_growth(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def capex_change(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate the canonical CapEx change factor. The direction 
-    is reversed due to low CapEx change historically outperforming 
-    higher CapEx change:
+    """Calculate the canonical asset-scaled capital-expenditure change factor.
 
-    Calculates the yearly change in TTM CapEx scaled by total assets for the period:
+    Construction:
+        ``CapEx change = (TTM CapEx(t) - TTM CapEx(t-4)) / A(t)``
 
-    ``CapEx Change = (TTM CE*(t) - TTM CE*(t - 4)) / A*(t)``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``capital_expenditures``, and
+        ``total_assets``.
+
+    Point-in-time handling:
+        Quarterly CapEx magnitudes are summed over four unique fiscal quarters,
+        compared with the TTM value four fiscal quarters earlier, and scaled by
+        current point-in-time assets.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -99,13 +112,18 @@ def capex_change(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def noa_change(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate the canonical net operating asset (NOA) change factor. 
-    The direction is reversed due to low NOA change historically outperforming 
-    higher NOA change:
+    """Calculate the canonical asset-scaled net-operating-assets change factor.
 
-    Calculates the yearly change in NOA scaled by total assets for the period:
+    Construction:
+        ``NOA change = (NOA(t) - NOA(t-4)) / A(t)``
 
-    ``NOA Change = (NOA*(t) - NOA*(t - 4)) / A*(t)``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``total_assets``, ``total_liabilities``,
+        ``cash_and_equivalents``, ``short_term_debt``, and ``long_term_debt``.
+
+    Point-in-time handling:
+        All inputs are point-in-time balance-sheet values, and the comparison
+        value is lagged four unique fiscal-quarter observations.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,

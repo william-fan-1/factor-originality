@@ -12,10 +12,15 @@ from modules.factors.utils import (
 def book_to_market(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical book-equity-to-market-equity factor.
 
-    Calculates the ratio between book equity value (total assets - total liabilities)
-    and market equity value (market capitalization):
+    Construction:
+        ``Book to market = (A(t) - L(t)) / market equity(t)``
 
-    ``B/M = (total assets - total liabilities) / market cap``
+    Required cached columns:
+        ``total_assets``, ``total_liabilities``, and ``market_cap``.
+
+    Point-in-time handling:
+        Book equity uses the latest available balance sheet, while market equity
+        uses the contemporaneous trading-day market capitalization.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``total_assets``,
@@ -36,9 +41,15 @@ def book_to_market(data: pd.DataFrame) -> pd.DataFrame:
 def earnings_to_price(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate earnings yield using trailing-four-quarter net income.
 
-    Calculates a company's earnings yield:
+    Construction:
+        ``Earnings yield = TTM net income / market equity(t)``
 
-    ``E/P = trailing-four-quarter net income / market cap``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``net_income``, and ``market_cap``.
+
+    Point-in-time handling:
+        Net income is summed over four unique fiscal quarters and divided by
+        contemporaneous trading-day market capitalization.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -58,9 +69,15 @@ def earnings_to_price(data: pd.DataFrame) -> pd.DataFrame:
 def fcf_to_price(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical free-cash-flow-to-price factor.
 
-    Calculates the ratio between free cash flow and market capitalization:
+    Construction:
+        ``FCF/P = (operating cash flow - abs(CapEx)) / market equity(t)``
 
-    ``FCF/P = (operating cash flow - abs(CapEx)) / market cap``
+    Required cached columns:
+        ``operating_cash_flow``, ``capital_expenditures``, and ``market_cap``.
+
+    Point-in-time handling:
+        The latest available cash-flow observation is divided by contemporaneous
+        trading-day market capitalization.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``operating_cash_flow``,

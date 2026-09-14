@@ -11,10 +11,15 @@ from modules.factors.utils import (
 def gross_profit_margin(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical gross profit margin factor.
 
-    Calculates the ratio between TTM gross profit (revenue - cogs)
-    and sales:
+    Construction:
+        ``Gross margin = (TTM revenue - TTM COGS) / TTM revenue``
 
-    ``GP/Sales = (revenue - cogs) / sales``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``revenue``, and ``cost_of_goods_sold``.
+
+    Point-in-time handling:
+        Revenue and COGS are summed over the latest four available unique fiscal
+        quarters before the ratio is calculated.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -38,10 +43,16 @@ def gross_profit_margin(data: pd.DataFrame) -> pd.DataFrame:
 def gross_profitability(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical gross profitability factor.
 
-    Calculates the ratio between TTM gross profit (revenue - cogs)
-    and assets:
+    Construction:
+        ``Gross profitability = (TTM revenue - TTM COGS) / A(t)``
 
-    ``GP/Assets = (revenue - cogs) / total assets``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``revenue``, ``cost_of_goods_sold``, and
+        ``total_assets``.
+
+    Point-in-time handling:
+        Revenue and COGS are summed over four unique fiscal quarters and divided
+        by current point-in-time assets.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -73,10 +84,16 @@ def gross_profitability(data: pd.DataFrame) -> pd.DataFrame:
 def operating_profitability(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical operating profitability factor.
 
-    Calculates the ratio between TTM operating profit (EBIT)
-    and book equity:
+    Construction:
+        ``Operating profitability = TTM operating income / book equity(t)``
 
-    ``OP/B = operating income / book equity``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``operating_income``, ``total_assets``, and
+        ``total_liabilities``.
+
+    Point-in-time handling:
+        Operating income is summed over four unique fiscal quarters and divided
+        by current point-in-time book equity.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
@@ -108,10 +125,16 @@ def operating_profitability(data: pd.DataFrame) -> pd.DataFrame:
 def return_on_equity(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the canonical return on equity factor.
 
-    Calculates the ratio between the TTM net income
-    and book equity:
+    Construction:
+        ``ROE = TTM net income / book equity(t)``
 
-    ``NI/B = net income / book equity``
+    Required cached columns:
+        ``ticker``, ``period_end``, ``net_income``, ``total_assets``, and
+        ``total_liabilities``.
+
+    Point-in-time handling:
+        Net income is summed over four unique fiscal quarters and divided by
+        current point-in-time book equity.
 
     Args:
         data (pd.DataFrame): Point-in-time data containing ``ticker``,
