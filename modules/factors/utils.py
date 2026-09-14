@@ -286,6 +286,49 @@ def calculate_trailing_sum(
     )
     return pd.Series(trailing.reindex(original_keys).to_numpy(), index=data.index)
 
+def lag_quarterly_values(
+    data: pd.DataFrame,
+    values: pd.Series,
+    quarters: int = 1,
+) -> pd.Series:
+    """Lag values across unique fiscal-quarter observations for each ticker.
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing ``ticker`` and
+            ``period_end`` columns.
+        values (pd.Series): Values aligned to the rows of ``data``.
+        quarters (int): Number of unique fiscal quarters by which to lag values.
+
+    Returns:
+        pd.Series: Lagged quarterly values aligned to the original DataFrame index.
+    """
+    require_columns(data, {'ticker', 'period_end'})
+    if quarters < 1:
+        raise ValueError('quarters must be at least 1')
+    if not values.index.equals(data.index):
+        raise ValueError('values must have the same index as data')
+
+    observations = data[['ticker', 'period_end']].copy()
+    observations['period_end'] = pd.to_datetime(
+        observations['period_end'], errors='coerce'
+    )
+    observations['_value'] = pd.to_numeric(values, errors='coerce')
+    observations = (
+        observations
+        .dropna(subset=['ticker', 'period_end'])
+        .sort_values(['ticker', 'period_end'])
+        .drop_duplicates(['ticker', 'period_end'], keep='last')
+    )
+    observations['_lagged'] = observations.groupby(
+        'ticker', sort=False
+    )['_value'].shift(quarters)
+    lagged = observations.set_index(['ticker', 'period_end'])['_lagged']
+    original_period_end = pd.to_datetime(data['period_end'], errors='coerce')
+    original_keys = pd.MultiIndex.from_arrays(
+        [data['ticker'], original_period_end], names=['ticker', 'period_end']
+    )
+    return pd.Series(lagged.reindex(original_keys).to_numpy(), index=data.index)
+
 def _process_data(data: pd.DataFrame) -> pd.DataFrame:
     """Process prices.
 
@@ -369,6 +412,7 @@ __all__ = [
     'drop_invalid_factor',
     'load_fundamental_data',
     'load_price_data',
+    'lag_quarterly_values',
     'require_columns',
     'winsorize',
 ]
