@@ -13,6 +13,8 @@ from modules.data_retrieval.utils import connection
 # Used only when Compustat has no report date (rdq). Set well past the 10-Q/10-K
 # filing deadlines so an imputed date is never earlier than the real one.
 _FALLBACK_REPORT_LAG_DAYS = 90
+# Compustat reports dollar items in millions; prices and shares are in units.
+_COMPUSTAT_UNIT = 1_000_000
 _LOG_PATH = Path(__file__).resolve().parents[2] / 'data' / 'logs' / 'imputed_filing_dates.csv'
 
 # Compustat quarterly item -> canonical metric name
@@ -51,15 +53,18 @@ METRICS = [
 
 
 def load_fundamentals(
-    tickers: list[str],
+    permnos: list[int],
     start_date: str | date | pd.Timestamp,
     end_date: str | date | pd.Timestamp,
     history_quarters: int = 5,
 ) -> pd.DataFrame:
     """Load discrete quarterly fundamentals and availability dates from Compustat.
 
-    Tickers map to Compustat ``gvkey`` through the CRSP-Compustat link table
-    (primary links only, valid on the fiscal period end) and CRSP ``dsenames``.
+    PERMNOs map to Compustat ``gvkey`` through the CRSP-Compustat link table
+    (valid on the fiscal period end; includes link type ``LS`` and joint
+    share-class links ``J`` so secondary classes such as DISCK resolve).
+
+    All metrics are returned in dollars (Compustat's millions are scaled up).
 
     Point-in-time handling:
         ``filing_date`` is the earnings report date (``rdq``) plus one day, since
@@ -70,14 +75,14 @@ def load_fundamentals(
         snapshot.
 
     Args:
-        tickers (list[str]): CRSP ticker symbols to query.
+        permnos (list[int]): CRSP PERMNOs to query.
         start_date (str | date | pd.Timestamp): Inclusive analysis start date.
         end_date (str | date | pd.Timestamp): Inclusive analysis end date.
         history_quarters (int): Observations retained before ``start_date``.
 
     Returns:
-        pd.DataFrame: ``ticker, permno, period_end, filing_date, filing_timestamp``
-            ``filing_date_imputed`` plus every metric in ``METRICS``;
+        pd.DataFrame: ``permno, period_end, filing_date, filing_timestamp,
+            filing_date_imputed`` plus every metric in ``METRICS``;
             ``filing_timestamp`` is always null.
     """
     start, end = pd.Timestamp(start_date).normalize(), pd.Timestamp(end_date).normalize()
@@ -91,40 +96,41 @@ def load_fundamentals(
     select_items = ', '.join(f'f.{item}' for item in [*_QUARTERLY_ITEMS, *_YTD_ITEMS])
     raw = connection().raw_sql(
         f"""
-        SELECT n.ticker, l.lpermno AS permno, f.gvkey, f.datadate AS period_end,
+        SELECT l.lpermno AS permno, f.gvkey, f.datadate AS period_end,
                f.rdq, f.fyearq, f.fqtr, {select_items}
         FROM comp.fundq AS f
         JOIN crsp.ccmxpf_linktable AS l
           ON f.gvkey = l.gvkey
-         AND l.linktype IN ('LC', 'LU')
-         AND l.linkprim IN ('P', 'C')
+         AND l.linktype IN ('LC', 'LU', 'LS')
+         AND l.linkprim IN ('P', 'C', 'J')
          AND f.datadate >= l.linkdt
          AND (f.datadate <= l.linkenddt OR l.linkenddt IS NULL)
-        JOIN crsp.dsenames AS n
-          ON n.permno = l.lpermno
-         AND f.datadate BETWEEN n.namedt AND n.nameendt
-        WHERE n.ticker IN %(tickers)s
+        WHERE l.lpermno IN %(permnos)s
           AND f.datadate BETWEEN %(start)s AND %(end)s
           AND f.indfmt = 'INDL' AND f.datafmt = 'STD'
           AND f.popsrc = 'D' AND f.consol = 'C'
         """,
         params={
-            'tickers': tuple(tickers),
+            'permnos': tuple(int(permno) for permno in permnos),
             'start': query_start.date(),
             'end': end.date(),
         },
         date_cols=['period_end', 'rdq'],
     )
     columns = [
-        'ticker', 'permno', 'period_end', 'filing_date', 'filing_timestamp',
+        'permno', 'period_end', 'filing_date', 'filing_timestamp',
         'filing_date_imputed', *METRICS,
     ]
     if raw.empty:
         return pd.DataFrame(columns=columns)
 
+    # WRDS can return nullable integer/float dtypes; plain floats keep NA out of boolean logic.
+    numeric = [*_QUARTERLY_ITEMS, *_YTD_ITEMS, 'fyearq', 'fqtr']
+    raw[numeric] = raw[numeric].apply(pd.to_numeric, errors='coerce').astype('float64')
+    raw['permno'] = raw['permno'].astype('int64')
     raw = (
-        raw.sort_values(['ticker', 'period_end', 'rdq'])
-        .drop_duplicates(['ticker', 'period_end'], keep='last')
+        raw.sort_values(['permno', 'period_end', 'rdq'])
+        .drop_duplicates(['permno', 'period_end'], keep='last')
         .rename(columns={**_QUARTERLY_ITEMS})
         .reset_index(drop=True)
     )
@@ -135,6 +141,7 @@ def load_fundamentals(
     raw['shareholders_equity'] = raw['shareholders_equity'].fillna(
         raw['total_assets'] - raw['total_liabilities']
     )
+    raw[METRICS] = raw[METRICS] * _COMPUSTAT_UNIT
 
     raw['filing_date_imputed'] = raw['rdq'].isna()
     report_date = raw['rdq'].fillna(
@@ -145,7 +152,7 @@ def load_fundamentals(
 
     raw = raw.loc[raw['filing_date'].le(end)]
     parts = []
-    for _, group in raw.groupby('ticker', sort=False):
+    for _, group in raw.groupby('permno', sort=False):
         group = group.sort_values('period_end')
         history = group.loc[group['filing_date'].le(start)].tail(history_quarters)
         analysis = group.loc[group['filing_date'].gt(start)]
@@ -153,7 +160,7 @@ def load_fundamentals(
     result = pd.concat(parts, ignore_index=True) if parts else raw.iloc[0:0]
     result = (
         result.reindex(columns=columns)
-        .sort_values(['ticker', 'period_end'])
+        .sort_values(['permno', 'period_end'])
         .reset_index(drop=True)
     )
     _log_imputed_filing_dates(result)
@@ -164,7 +171,7 @@ def _log_imputed_filing_dates(result: pd.DataFrame) -> None:
     """Append quarters whose filing date was imputed to ``data/logs``."""
     imputed = result.loc[
         result['filing_date_imputed'].astype(bool),
-        ['ticker', 'permno', 'period_end', 'filing_date'],
+        ['permno', 'period_end', 'filing_date'],
     ]
     if imputed.empty:
         return
@@ -181,10 +188,10 @@ def _ytd_to_discrete(frame: pd.DataFrame) -> pd.DataFrame:
     quarter of the same year; if that quarter is missing the value is ``NaN``
     rather than a multi-quarter total.
     """
-    frame = frame.sort_values(['ticker', 'fyearq', 'fqtr']).copy()
-    group = frame.groupby(['ticker', 'fyearq'], sort=False)
-    consecutive = group['fqtr'].diff().eq(1)
-    first_quarter = frame['fqtr'].eq(1)
+    frame = frame.sort_values(['permno', 'fyearq', 'fqtr']).copy()
+    group = frame.groupby(['permno', 'fyearq'], sort=False)
+    consecutive = group['fqtr'].diff().eq(1).fillna(False).astype(bool)
+    first_quarter = frame['fqtr'].eq(1).fillna(False).astype(bool)
     for item in _YTD_ITEMS:
         discrete = group[item].diff()
         frame[item] = np.where(first_quarter, frame[item], discrete.where(consecutive))

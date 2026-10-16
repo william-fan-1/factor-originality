@@ -7,27 +7,23 @@ from modules.data_retrieval.utils import connection
 
 
 def retrieve_prices(
-    tickers: list[str],
+    permnos: list[int],
     start_date: str | date | pd.Timestamp,
     end_date: str | date | pd.Timestamp,
     lookback_months: int = 13,
 ) -> pd.DataFrame:
     """Retrieve daily prices, volume, and shares outstanding from CRSP.
 
-    Tickers are mapped to PERMNOs through ``crsp.dsenames`` using the name
-    validity window, so a reused ticker only matches the security that held
-    it on each date.
-
     Args:
-        tickers (list[str]): CRSP ticker symbols to query.
+        permnos (list[int]): CRSP PERMNOs to query.
         start_date (str | date | pd.Timestamp): Inclusive analysis start date.
         end_date (str | date | pd.Timestamp): Exclusive analysis end date.
         lookback_months (int): Calendar months of price history to retrieve before
             ``start_date``; 13 supports characteristics requiring 12-month history.
 
     Returns:
-        pd.DataFrame: Daily observations with ticker, permno, date, close,
-            adjusted_close (split-adjusted), volume, ret, and shares_outstanding.
+        pd.DataFrame: Daily observations with permno, date, close, adjusted_close
+            (split-adjusted), volume, ret, and shares_outstanding.
     """
     if lookback_months < 0:
         raise ValueError('lookback_months must be non-negative')
@@ -39,26 +35,24 @@ def retrieve_prices(
 
     prices = connection().raw_sql(
         """
-        SELECT n.ticker, d.permno, d.date,
+        SELECT d.permno, d.date,
                ABS(d.prc)            AS close,
                ABS(d.prc) / d.cfacpr AS adjusted_close,
                d.vol                 AS volume,
                d.ret,
                d.shrout * 1000       AS shares_outstanding
         FROM crsp.dsf AS d
-        JOIN crsp.dsenames AS n
-          ON d.permno = n.permno
-         AND d.date BETWEEN n.namedt AND n.nameendt
-        WHERE n.ticker IN %(tickers)s
+        WHERE d.permno IN %(permnos)s
           AND d.date >= %(start)s
           AND d.date <  %(end)s
-        ORDER BY n.ticker, d.date
+        ORDER BY d.permno, d.date
         """,
         params={
-            'tickers': tuple(tickers),
+            'permnos': tuple(int(permno) for permno in permnos),
             'start': retrieval_start.date(),
             'end': retrieval_end.date(),
         },
         date_cols=['date'],
     )
+    prices['permno'] = prices['permno'].astype('int64')
     return prices
