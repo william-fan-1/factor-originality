@@ -3,16 +3,7 @@
 from datetime import date
 
 import pandas as pd
-import wrds
-
-_db: wrds.Connection | None = None
-
-
-def _connection() -> wrds.Connection:
-    global _db
-    if _db is None:
-        _db = wrds.Connection()
-    return _db
+from modules.data_retrieval.utils import connection
 
 
 def retrieve_prices(
