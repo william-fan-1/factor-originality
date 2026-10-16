@@ -37,7 +37,7 @@ def retrieve_prices(
         raise ValueError('start_date must be before end_date')
     retrieval_start = analysis_start - pd.DateOffset(months=lookback_months)
 
-    prices = _connection().raw_sql(
+    prices = connection().raw_sql(
         """
         SELECT n.ticker, d.permno, d.date,
                ABS(d.prc)            AS close,
