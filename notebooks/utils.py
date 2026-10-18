@@ -7,53 +7,67 @@ import pandas as pd
 
 from modules.factors.factor import Factor
 from modules.factors.mappings import FACTOR_MAPPINGS
-from modules.factors.utils import align_data, load_fundamental_data, load_price_data
+from modules.factors.utils import (
+    add_index_membership,
+    align_data,
+    load_fundamental_data,
+    load_price_data,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / 'data'
 
 
-def load_tickers(year: int) -> list[str]:
-    """Load the unique ticker universe for a cohort year.
+def load_universe(start_year: int, end_year: int) -> pd.DataFrame:
+    """Load the S&P 500 membership table built by ``scripts/build_crsp_universe.py``.
 
     Args:
-        year (int): First year of the five-year cohort period.
+        start_year (int): First year of the period.
+        end_year (int): Last year of the period.
 
     Returns:
-        list[str]: Tickers in source-file order with duplicates removed.
+        pd.DataFrame: One row per security with ``permno``, ``ticker``, ``name``,
+            ``start``, and ``end``.
     """
-    path = DATA_DIR / 'tickers' / f'tickers_{year}.csv'
+    path = DATA_DIR / 'sp500_universe' / f'crsp_universe_{start_year}_{end_year}.parquet'
     if not path.is_file():
-        raise FileNotFoundError(f'Missing ticker universe: {path}')
-    tickers = pd.read_csv(path)['Ticker'].dropna().astype(str)
-    return list(dict.fromkeys(tickers))
+        raise FileNotFoundError(
+            f'Missing universe: {path}\n'
+            f'Run: python scripts/build_crsp_universe.py --start {start_year} --end {end_year}'
+        )
+    return pd.read_parquet(path)
 
 
-def load_aligned_factor_data(year: int) -> pd.DataFrame:
-    """Load and point-in-time align cached price and fundamental data for a cohort.
+def load_aligned_factor_data(start_year: int, end_year: int) -> pd.DataFrame:
+    """Load cached prices and fundamentals, align them point-in-time, and flag membership.
 
     Args:
-        year (int): First year of the five-year cache period.
+        start_year (int): First year of the cache period.
+        end_year (int): Last year of the cache period.
 
     Returns:
-        pd.DataFrame: Daily stock panel containing prices and aligned fundamentals.
+        pd.DataFrame: Daily stock panel with prices, aligned fundamentals, and an
+            ``in_index`` column marking dates on which each stock was an index member.
     """
-    tickers = load_tickers(year)
-    fundamentals = load_fundamental_data(tickers=tickers, year=year)
-    prices = load_price_data(tickers=tickers, year=year)
-    return align_data(fundamental_data=fundamentals, price_data=prices)
+    universe = load_universe(start_year, end_year)
+    tickers = universe['ticker'].tolist()
+    fundamentals = load_fundamental_data(tickers, start_year, end_year)
+    prices = load_price_data(tickers, start_year, end_year)
+    aligned = align_data(fundamental_data=fundamentals, price_data=prices)
+    return add_index_membership(aligned, universe)
 
 
 def calculate_factor_return_data(
     data: pd.DataFrame,
-    year: int,
+    start_year: int,
     factors: Sequence[str] | None = None,
 ) -> pd.DataFrame:
     """Calculate and merge daily portfolio returns for selected registered factors.
 
     Args:
         data (pd.DataFrame): Daily stock panel accepted by the registered factors.
-        year (int): First year of the factor-analysis period.
+        start_year (int): First year of the analysis; earlier rows only supply
+            warm-up history and are dropped from the returns.
         factors (Sequence[str] | None): Factor names to calculate, or ``None`` for all.
 
     Returns:
@@ -69,7 +83,7 @@ def calculate_factor_return_data(
 
     return_series: list[pd.Series] = []
     for name in selected:
-        factor_returns = Factor(factor=name, year=year, data=data).data
+        factor_returns = Factor(factor=name, data=data).data
         series = factor_returns.set_index('date')['factor_return'].rename(name)
         return_series.append(series)
 
@@ -78,50 +92,13 @@ def calculate_factor_return_data(
         .sort_index()
         .rename_axis('date')
         .reset_index()
-        .loc[lambda frame: frame['date'].ge(pd.Timestamp(year=year, month=1, day=1))]
+        .loc[lambda frame: frame['date'].ge(pd.Timestamp(year=start_year, month=1, day=1))]
         .reset_index(drop=True)
     )
 
 
-def concatenate_factor_return_periods(
-    periods: Sequence[pd.DataFrame],
-) -> pd.DataFrame:
-    """Concatenate non-overlapping factor-return periods into one time series.
-
-    Args:
-        periods (Sequence[pd.DataFrame]): Factor-return panels containing a unique
-            ``date`` column and one or more factor columns.
-
-    Returns:
-        pd.DataFrame: Chronologically sorted factor returns spanning every period.
-    """
-    if not periods:
-        return pd.DataFrame(columns=['date'])
-
-    frames: list[pd.DataFrame] = []
-    for index, period in enumerate(periods):
-        if 'date' not in period:
-            raise ValueError(f'Factor-return period {index} is missing date')
-        frame = period.copy()
-        frame['date'] = pd.to_datetime(frame['date'], errors='raise')
-        if frame['date'].duplicated().any():
-            raise ValueError(f'Factor-return period {index} contains duplicate dates')
-        frames.append(frame)
-
-    result = pd.concat(frames, ignore_index=True, sort=False)
-    duplicate_dates = result.loc[result['date'].duplicated(keep=False), 'date']
-    if not duplicate_dates.empty:
-        examples = ', '.join(
-            timestamp.strftime('%Y-%m-%d')
-            for timestamp in duplicate_dates.drop_duplicates().sort_values().head(5)
-        )
-        raise ValueError(f'Factor-return periods overlap on dates including {examples}')
-    return result.sort_values('date').reset_index(drop=True)
-
-
 __all__ = [
     'calculate_factor_return_data',
-    'concatenate_factor_return_periods',
     'load_aligned_factor_data',
-    'load_tickers',
+    'load_universe',
 ]
