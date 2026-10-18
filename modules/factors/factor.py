@@ -16,15 +16,15 @@ class Factor:
     def __init__(
         self,
         factor: str,
-        year: int,
         data: pd.DataFrame,
     ) -> None:
         """Initialize a factor and calculate its portfolio returns.
 
         Args:
             factor (str): Registered factor name from ``FACTOR_MAPPINGS``.
-            year (int): First year of the factor's source-data period.
             data (pd.DataFrame): Daily security panel required by the factor function.
+                If it has a boolean ``in_index`` column, only rows where it is true
+                are ranked into portfolios; other rows still supply signal history.
 
         Returns:
             None.
@@ -32,7 +32,6 @@ class Factor:
         definition = get_factor_mapping(factor)
         self.name = factor
         self.factor = definition['column']
-        self.year = year
         self.func = definition['func']
         self.direction: FactorDirection = definition['direction']
         self.signals = pd.DataFrame()
@@ -96,6 +95,8 @@ class Factor:
         result = data.copy()
         result['date'] = pd.to_datetime(result['date'], errors='raise')
         signal = pd.to_numeric(result[self.factor], errors='coerce')
+        if 'in_index' in result:
+            signal = signal.where(result['in_index'].fillna(False).astype(bool))
         group = signal.groupby(result['date'])
         percentile_rank = group.rank(method='average', pct=True)
         observation_count = group.transform('count')
