@@ -14,6 +14,12 @@ def retrieve_prices(
 ) -> pd.DataFrame:
     """Retrieve daily prices, volume, and shares outstanding from CRSP.
 
+    ``adjusted_close`` is a total-return index: the split-adjusted price on a
+    security's first date compounded by CRSP's daily holding-period return
+    ``ret`` (which includes dividends). Price-based factors and returns computed
+    from it therefore match the dividend-adjusted convention of yfinance's
+    ``Adj Close``. ``split_adjusted_close`` keeps the price-only series.
+
     Args:
         permnos (list[int]): CRSP PERMNOs to query.
         start_date (str | date | pd.Timestamp): Inclusive analysis start date.
@@ -22,8 +28,9 @@ def retrieve_prices(
             ``start_date``; 13 supports characteristics requiring 12-month history.
 
     Returns:
-        pd.DataFrame: Daily observations with permno, date, close, adjusted_close
-            (split-adjusted), volume, ret, and shares_outstanding.
+        pd.DataFrame: Daily observations with permno, date, close,
+            adjusted_close (total-return index), split_adjusted_close, volume,
+            ret, and shares_outstanding.
     """
     if lookback_months < 0:
         raise ValueError('lookback_months must be non-negative')
@@ -37,7 +44,7 @@ def retrieve_prices(
         """
         SELECT d.permno, d.date,
                ABS(d.prc)            AS close,
-               ABS(d.prc) / d.cfacpr AS adjusted_close,
+               ABS(d.prc) / d.cfacpr AS split_adjusted_close,
                d.vol                 AS volume,
                d.ret,
                d.shrout * 1000       AS shares_outstanding
@@ -55,4 +62,27 @@ def retrieve_prices(
         date_cols=['date'],
     )
     prices['permno'] = prices['permno'].astype('int64')
-    return prices
+    numeric = ['close', 'split_adjusted_close', 'volume', 'ret', 'shares_outstanding']
+    prices[numeric] = prices[numeric].astype('float64')
+    return prices.assign(adjusted_close=_total_return_index(prices))[
+        ['permno', 'date', 'close', 'adjusted_close', 'split_adjusted_close',
+         'volume', 'ret', 'shares_outstanding']
+    ]
+
+
+def _total_return_index(prices: pd.DataFrame) -> pd.Series:
+    """Compound ``ret`` per PERMNO from the first split-adjusted price.
+
+    A missing ``ret`` (a non-trading gap) contributes no change; CRSP's next
+    reported return already spans the gap. The first observation has no prior
+    price, so its return is ignored and the index starts at that price.
+    """
+    ordered = prices.sort_values(['permno', 'date'])
+    first_row = ordered['permno'].ne(ordered['permno'].shift())
+    growth = (
+        (1 + ordered['ret'].fillna(0.0).where(~first_row, 0.0))
+        .groupby(ordered['permno'])
+        .cumprod()
+    )
+    base = ordered['split_adjusted_close'].groupby(ordered['permno']).transform('first')
+    return (base * growth).reindex(prices.index)
