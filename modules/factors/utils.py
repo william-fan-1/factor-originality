@@ -13,18 +13,20 @@ RAW_DATA_DIR = PROJECT_ROOT / 'data' / 'raw_data'
 
 def load_fundamental_data(
     tickers: Sequence[str],
-    year: int,
+    start_year: int,
+    end_year: int,
 ) -> pd.DataFrame:
     """Load fundamentals.
 
     Args:
         tickers (Sequence[str]): Tickers whose cached fundamentals should be loaded.
-        year (int): First year of the five-year cache period.
+        start_year (int): First year of the cache period.
+        end_year (int): Last year of the cache period.
 
     Returns:
         pd.DataFrame: Long-form quarterly fundamentals sorted by ticker and period end.
     """
-    data = _load_cached_frames(tickers, year, 'fundamentals')
+    data = _load_cached_frames(tickers, start_year, end_year, 'fundamentals')
     if data.empty:
         return data
 
@@ -42,18 +44,20 @@ def load_fundamental_data(
 
 def load_price_data(
     tickers: Sequence[str],
-    year: int,
+    start_year: int,
+    end_year: int,
 ) -> pd.DataFrame:
     """Load prices.
 
     Args:
         tickers (Sequence[str]): Tickers whose cached prices should be loaded.
-        year (int): First year of the five-year cache period.
+        start_year (int): First year of the cache period.
+        end_year (int): Last year of the cache period.
 
     Returns:
         pd.DataFrame: Long-form daily prices with market caps and stock returns.
     """
-    data = _load_cached_frames(tickers, year, 'prices')
+    data = _load_cached_frames(tickers, start_year, end_year, 'prices')
     if data.empty:
         return data
 
@@ -90,6 +94,9 @@ def align_data(
 
     fundamentals = fundamental_data.copy()
     prices = price_data.copy()
+    if 'permno' in prices:
+        # Both cached datasets carry permno; keep the price-side column only.
+        fundamentals = fundamentals.drop(columns='permno', errors='ignore')
     fundamentals['period_end'] = pd.to_datetime(
         fundamentals['period_end'], errors='raise'
     ).astype('datetime64[ns]')
@@ -131,6 +138,34 @@ def align_data(
         allow_exact_matches=True,
     )
     return aligned_data.sort_values(['ticker', 'date']).reset_index(drop=True)
+
+def add_index_membership(
+    data: pd.DataFrame,
+    universe: pd.DataFrame,
+) -> pd.DataFrame:
+    """Flag the dates on which each security was a member of the index.
+
+    The flag is added rather than used to drop rows so signals that need
+    history from before a security joined (for example 12-month momentum) can
+    still be computed; ``Factor`` ranks only rows where ``in_index`` is true.
+
+    Args:
+        data (pd.DataFrame): Daily panel containing ``permno`` and ``date``.
+        universe (pd.DataFrame): Membership containing ``permno``, ``start``,
+            and ``end`` (inclusive), one row per security.
+
+    Returns:
+        pd.DataFrame: Copy of the data with a boolean ``in_index`` column.
+    """
+    require_columns(data, {'permno', 'date'})
+    require_columns(universe, {'permno', 'start', 'end'})
+    bounds = universe[['permno', 'start', 'end']].copy()
+    bounds['permno'] = bounds['permno'].astype('int64')
+    result = data.copy()
+    result['permno'] = result['permno'].astype('int64')
+    result = result.merge(bounds, on='permno', how='left', validate='many_to_one')
+    result['in_index'] = result['date'].between(result['start'], result['end'])
+    return result.drop(columns=['start', 'end'])
 
 def _effective_filing_dates(
     fundamentals: pd.DataFrame,
@@ -344,14 +379,16 @@ def _process_data(data: pd.DataFrame) -> pd.DataFrame:
 
 def _load_cached_frames(
     tickers: Sequence[str],
-    year: int,
+    start_year: int,
+    end_year: int,
     dataset: str,
 ) -> pd.DataFrame:
     """Concatenate caches.
 
     Args:
         tickers (Sequence[str]): Tickers whose cache files should be loaded.
-        year (int): First year of the five-year cache period.
+        start_year (int): First year of the cache period.
+        end_year (int): Last year of the cache period.
         dataset (str): Cache suffix, either ``'prices'`` or ``'fundamentals'``.
 
     Returns:
@@ -360,7 +397,7 @@ def _load_cached_frames(
     if dataset not in {'prices', 'fundamentals'}:
         raise ValueError("dataset must be either 'prices' or 'fundamentals'")
 
-    cache_dir = RAW_DATA_DIR / f'{year}_{year + 4}'
+    cache_dir = RAW_DATA_DIR / f'{start_year}_{end_year}'
     paths = [cache_dir / f'{ticker}_{dataset}.parquet' for ticker in tickers]
     missing = [path for path in paths if not path.is_file()]
     if missing:
@@ -405,6 +442,7 @@ def require_columns(data: pd.DataFrame, columns: set[str]) -> None:
         raise ValueError(f'Missing required columns: {", ".join(sorted(missing))}')
 
 __all__ = [
+    'add_index_membership',
     'align_data',
     'calculate_market_cap',
     'calculate_returns',
