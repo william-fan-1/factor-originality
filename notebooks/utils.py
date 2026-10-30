@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from modules.factors.factor import Factor
+from modules.factors.factor import Factor, hash_data
 from modules.factors.mappings import FACTOR_MAPPINGS
 from modules.factors.utils import (
     add_index_membership,
@@ -61,6 +61,8 @@ def calculate_factor_return_data(
     data: pd.DataFrame,
     start_year: int,
     factors: Sequence[str] | None = None,
+    use_cache: bool = True,
+    refresh: bool = False,
 ) -> pd.DataFrame:
     """Calculate and merge daily portfolio returns for selected registered factors.
 
@@ -69,6 +71,8 @@ def calculate_factor_return_data(
         start_year (int): First year of the analysis; earlier rows only supply
             warm-up history and are dropped from the returns.
         factors (Sequence[str] | None): Factor names to calculate, or ``None`` for all.
+        use_cache (bool): Whether factors read from and write to their on-disk cache.
+        refresh (bool): Recalculate factors and overwrite their cache entries.
 
     Returns:
         pd.DataFrame: Date-indexed panel with one factor-return column per factor.
@@ -81,9 +85,16 @@ def calculate_factor_return_data(
     if not selected:
         return pd.DataFrame(columns=['date'])
 
+    data_key = hash_data(data) if use_cache else None
     return_series: list[pd.Series] = []
     for name in selected:
-        factor_returns = Factor(factor=name, data=data).data
+        factor_returns = Factor(
+            factor=name,
+            data=data,
+            use_cache=use_cache,
+            refresh=refresh,
+            data_key=data_key,
+        ).data
         series = factor_returns.set_index('date')['factor_return'].rename(name)
         return_series.append(series)
 

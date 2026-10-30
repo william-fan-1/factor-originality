@@ -161,11 +161,15 @@ def add_index_membership(
     require_columns(universe, {'permno', 'start', 'end'})
     bounds = universe[['permno', 'start', 'end']].copy()
     bounds['permno'] = bounds['permno'].astype('int64')
-    result = data.copy()
-    result['permno'] = result['permno'].astype('int64')
-    result = result.merge(bounds, on='permno', how='left', validate='many_to_one')
-    result['in_index'] = result['date'].between(result['start'], result['end'])
-    return result.drop(columns=['start', 'end'])
+    if bounds['permno'].duplicated().any():
+        raise ValueError('universe must have one row per permno')
+    bounds = bounds.set_index('permno')
+    # Map bounds onto rows instead of merging, which would copy the whole panel.
+    permno = data['permno'].astype('int64')
+    start = permno.map(bounds['start'])
+    end = permno.map(bounds['end'])
+    in_index = data['date'].ge(start) & data['date'].le(end)
+    return data.assign(permno=permno, in_index=in_index)
 
 def _effective_filing_dates(
     fundamentals: pd.DataFrame,

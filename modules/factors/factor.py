@@ -1,5 +1,11 @@
 """Provide a common interface for constructing long-short factor portfolios."""
 
+import hashlib
+import inspect
+import shutil
+import uuid
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -9,6 +15,25 @@ from modules.factors.mappings import (
 )
 from modules.factors.utils import require_columns
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FACTOR_CACHE_DIR = PROJECT_ROOT / 'data' / 'factors'
+_CACHED_FRAMES = ('signals', 'portfolios', 'portfolio_returns')
+
+
+def hash_data(data: pd.DataFrame) -> str:
+    """Fingerprint a security panel by its contents.
+
+    Args:
+        data (pd.DataFrame): Daily security panel.
+
+    Returns:
+        str: Hex digest that changes whenever values, columns, or dtypes change.
+    """
+    digest = hashlib.sha256()
+    digest.update(repr((data.shape, list(data.columns), list(data.dtypes))).encode())
+    digest.update(pd.util.hash_pandas_object(data, index=False).to_numpy().tobytes())
+    return digest.hexdigest()
+
 
 class Factor:
     """Construct daily value-weighted tercile portfolios for one factor signal."""
@@ -17,14 +42,28 @@ class Factor:
         self,
         factor: str,
         data: pd.DataFrame,
+        use_cache: bool = True,
+        refresh: bool = False,
+        cache_dir: Path | str = FACTOR_CACHE_DIR,
+        data_key: str | None = None,
     ) -> None:
         """Initialize a factor and calculate its portfolio returns.
+
+        Results are cached on disk under a key built from the factor definition
+        (name, direction, and source of the factor function) and a fingerprint of
+        ``data``. Changing either one produces a new cache entry. Edits to helper
+        functions called by the factor function are not detected; use ``refresh``.
 
         Args:
             factor (str): Registered factor name from ``FACTOR_MAPPINGS``.
             data (pd.DataFrame): Daily security panel required by the factor function.
                 If it has a boolean ``in_index`` column, only rows where it is true
                 are ranked into portfolios; other rows still supply signal history.
+            use_cache (bool): Whether to read from and write to the on-disk cache.
+            refresh (bool): Recalculate and overwrite any existing cache entry.
+            cache_dir (Path | str): Root directory of the factor cache.
+            data_key (str | None): Precomputed ``hash_data(data)``, to avoid
+                re-hashing a large panel for every factor.
 
         Returns:
             None.
@@ -37,7 +76,65 @@ class Factor:
         self.signals = pd.DataFrame()
         self.portfolios = pd.DataFrame()
         self.portfolio_returns = pd.DataFrame()
+        self.cache_path: Path | None = None
+        if use_cache:
+            key = self._cache_key(data_key or hash_data(data))
+            self.cache_path = Path(cache_dir) / self.name / key
+            if not refresh and self._load_cache():
+                self.data = self.portfolio_returns.copy()
+                return
         self.data = self.get_factor_data(data=data)
+        if self.cache_path is not None:
+            self._save_cache()
+
+    def _cache_key(self, data_key: str) -> str:
+        """Build the cache key.
+
+        Args:
+            data_key (str): Fingerprint of the input panel.
+
+        Returns:
+            str: Short hex digest identifying this factor definition and input.
+        """
+        try:
+            source = inspect.getsource(self.func)
+        except (OSError, TypeError):
+            source = getattr(self.func, '__qualname__', repr(self.func))
+        payload = '|'.join([self.name, self.factor, self.direction, source, data_key])
+        return hashlib.sha256(payload.encode()).hexdigest()[:20]
+
+    def _load_cache(self) -> bool:
+        """Load cached frames if a complete entry exists.
+
+        Returns:
+            bool: ``True`` if the cache was loaded, ``False`` on a miss or bad entry.
+        """
+        assert self.cache_path is not None
+        paths = {n: self.cache_path / f'{n}.parquet' for n in _CACHED_FRAMES}
+        if not all(path.is_file() for path in paths.values()):
+            return False
+        try:
+            frames = {n: pd.read_parquet(path) for n, path in paths.items()}
+        except Exception:
+            return False
+        self.signals = frames['signals']
+        self.portfolios = frames['portfolios']
+        self.portfolio_returns = frames['portfolio_returns']
+        return True
+
+    def _save_cache(self) -> None:
+        """Write frames to a temporary directory, then move it into place."""
+        assert self.cache_path is not None
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.cache_path.with_name(f'{self.cache_path.name}.{uuid.uuid4().hex}.tmp')
+        tmp.mkdir()
+        try:
+            for name in _CACHED_FRAMES:
+                getattr(self, name).to_parquet(tmp / f'{name}.parquet', index=False)
+            shutil.rmtree(self.cache_path, ignore_errors=True)
+            tmp.rename(self.cache_path)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def get_factor_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """Construct factor returns.
@@ -217,6 +314,7 @@ class Factor:
         result['factor_return'] = result['long_return'] - result['short_return']
         return (
             result[['long_return', 'short_return', 'factor_return']]
+            .rename_axis(columns=None)
             .reset_index()
             .sort_values('date')
             .reset_index(drop=True)
@@ -241,4 +339,4 @@ class Factor:
         )
 
 
-__all__ = ['Factor', 'FactorDirection']
+__all__ = ['Factor', 'FactorDirection', 'hash_data']
