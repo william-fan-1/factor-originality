@@ -27,7 +27,7 @@ def parallel_analysis(
         int: The number of components to use for PCA analysis.
     """
     np.random.seed(SEED)
-    returns = returns.to_numpy()
+    returns = np.asarray(returns, dtype=float)
     T, K = returns.shape
 
     # Get eigenvalues from correlation matrix
@@ -44,7 +44,10 @@ def parallel_analysis(
     thresholds = np.percentile(null_eigenvalues, percentile, axis=0)
     return int(np.sum(real_eigenvalues > thresholds))
 
-def view_principal_components(returns: pd.DataFrame) -> pd.DataFrame:
+def view_principal_components(
+    returns: pd.DataFrame,
+    n_components: int | None = None,
+) -> pd.DataFrame:
     """Perform PCA to see how factors contribute principal component loadings.
     Conceptually, PCA determines which underlying "axes" drive the most variation
     in the data. By performing PCA on monthly factor returns, I am hoping to see 
@@ -52,6 +55,8 @@ def view_principal_components(returns: pd.DataFrame) -> pd.DataFrame:
 
     Args:
         returns: Chronologically sorted monthly factor returns across a period.
+        n_components: Number of components to keep, or ``None`` to choose it
+            with parallel analysis.
 
     Returns:
         pd.DataFrame: A DataFrame holding principal component loadings.
@@ -62,7 +67,8 @@ def view_principal_components(returns: pd.DataFrame) -> pd.DataFrame:
     scaler = StandardScaler()
     returns = scaler.fit_transform(returns)
 
-    n_components = parallel_analysis(returns, n_iter=1000, percentile=95)
+    if n_components is None:
+        n_components = parallel_analysis(returns, n_iter=1000, percentile=95)
     pca = PCA(n_components=n_components)
     pca.fit(returns)
 
