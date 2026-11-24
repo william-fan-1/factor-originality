@@ -39,6 +39,16 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
         'func': operating_accruals_percent,
         'direction': 'low',
     },
+    'total_accruals_assets': {
+        'column': 'taccrls_assts',
+        'func': total_accruals_assets,
+        'direction': 'low',
+    },
+    'total_accruals_percent': {
+        'column': 'taccrls_pct',
+        'func': total_accruals_percent,
+        'direction': 'low',
+    },
     'asset_growth': {
         'column': 'asst_grwth',
         'func': asset_growth,

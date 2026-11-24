@@ -11,10 +11,10 @@ from modules.factors.utils import (
 
 
 def cowc_growth(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate change in current operating working capital.
+    """Calculate change in current operating working capital - Richardson et al. (2005).
 
     Construction:
-        ``(COWC_t - COWC_t-4q) / total_assets_t, where COWC = (current_assets - cash) - (current_liabilities - short_term_debt)``
+        ``(COWC(t) - COWC(t-4)) / total_assets(t), where COWC = (current_assets - cash) - (current_liabilities - short_term_debt)``
 
     Required cached columns:
         ticker, period_end, current_assets, cash_and_equivalents, current_liabilities, short_term_debt, total_assets
@@ -65,10 +65,10 @@ def cowc_growth(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def operating_accruals_to_assets(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate operating accruals scaled by assets.
+    """Calculate operating accruals scaled by assets - Sloan (1996).
 
     Construction:
-        ``(TTM net_income - TTM operating_cash_flow) / total_assets_t``
+        ``(TTM net_income(t) - TTM operating_cash_flow(t)) / total_assets(t)``
 
     Required cached columns:
         ticker, period_end, net_income, operating_cash_flow, total_assets
@@ -109,7 +109,7 @@ def operating_accruals_to_assets(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def operating_accruals_percent(data: pd.DataFrame) -> pd.DataFrame:
-    """Calculate percent operating accruals.
+    """Calculate percent operating accruals - Hafzalla et al. (2011).
 
     Construction:
         ``(TTM net_income - TTM operating_cash_flow) / abs(TTM net_income)``
@@ -141,6 +141,93 @@ def operating_accruals_percent(data: pd.DataFrame) -> pd.DataFrame:
     return drop_invalid_factor(result, 'op_accrls_pct')
 
 
+_TOTAL_ACCRUALS_COLUMNS = {
+    'ticker',
+    'period_end',
+    'total_assets',
+    'total_liabilities',
+    'cash_and_equivalents',
+}
+
+
+def total_accruals_assets(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate total-accruals-to-assets factor - Richardson et al. (2005).
+
+    Construction:
+        ``(dAssets - dLiabilities - dCash) / total_assets(t)``, where each d is
+        the change over the trailing four fiscal quarters.
+
+    Required cached columns:
+        ``ticker``, ``period_end``, ``total_assets``, ``total_liabilities``,
+        and ``cash_and_equivalents``.
+
+    Point-in-time handling:
+        The latest balance sheet is compared with the one four unique fiscal
+        quarters earlier, and the change is scaled by the latest total assets.
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing the columns above.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``taccrls_assts`` factor column.
+    """
+    require_columns(data, _TOTAL_ACCRUALS_COLUMNS)
+    result = data.copy()
+    accruals = _annual_total_accruals(result)
+    total_assets = pd.to_numeric(result['total_assets'], errors='coerce')
+    result['taccrls_assts'] = accruals / total_assets
+    return drop_invalid_factor(result, 'taccrls_assts')
+
+
+def total_accruals_percent(data: pd.DataFrame) -> pd.DataFrame:
+    """Calculate percent total accruals - Hafzalla et al. (2011).
+
+    Construction:
+        ``(dAssets - dLiabilities - dCash) / abs(TTM net_income(t))``, where
+        each d is the change over the trailing four fiscal quarters.
+
+    Required cached columns:
+        ``ticker``, ``period_end``, ``total_assets``, ``total_liabilities``,
+        ``cash_and_equivalents``, and ``net_income``.
+
+    Point-in-time handling:
+        Balance-sheet changes compare the latest balance sheet with the one four
+        unique fiscal quarters earlier. Net income is summed over four unique
+        fiscal quarters. The absolute value keeps the sign of the ratio
+        meaningful for loss-making firms, matching ``operating_accruals_percent``.
+
+    Args:
+        data (pd.DataFrame): Point-in-time data containing the columns above.
+
+    Returns:
+        pd.DataFrame: Input data with a non-null ``taccrls_pct`` factor column.
+    """
+    require_columns(data, _TOTAL_ACCRUALS_COLUMNS | {'net_income'})
+    result = data.copy()
+    accruals = _annual_total_accruals(result)
+    net_income = calculate_trailing_sum(result, 'net_income', quarters=4)
+    result['taccrls_pct'] = accruals / net_income.abs()
+    return drop_invalid_factor(result, 'taccrls_pct')
+
+
+def _annual_total_accruals(data: pd.DataFrame) -> pd.Series:
+    """Calculate ``dAssets - dLiabilities - dCash`` over four fiscal quarters.
+
+    Args:
+        data (pd.DataFrame): Quarterly panel containing total assets, total
+            liabilities, and cash.
+
+    Returns:
+        pd.Series: Four-quarter total accruals aligned to ``data``.
+    """
+    changes = []
+    for column in ('total_assets', 'total_liabilities', 'cash_and_equivalents'):
+        values = pd.to_numeric(data[column], errors='coerce')
+        changes.append(values - lag_quarterly_values(data, values, quarters=4))
+    delta_assets, delta_liabilities, delta_cash = changes
+    return delta_assets - delta_liabilities - delta_cash
+
+
 def _trailing_operating_accruals(
     data: pd.DataFrame,
 ) -> tuple[pd.Series, pd.Series]:
@@ -165,4 +252,6 @@ __all__ = [
     'cowc_growth',
     'operating_accruals_percent',
     'operating_accruals_to_assets',
+    'total_accruals_assets',
+    'total_accruals_percent',
 ]
