@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from modules.factors.factor import Factor, hash_data
 from modules.factors.mappings import FACTOR_MAPPINGS
@@ -87,7 +88,9 @@ def calculate_factor_return_data(
 
     data_key = hash_data(data) if use_cache else None
     return_series: list[pd.Series] = []
-    for name in selected:
+    progress = tqdm(selected, desc='Factor returns')
+    for name in progress:
+        progress.set_postfix_str(name)
         factor_returns = Factor(
             factor=name,
             data=data,
