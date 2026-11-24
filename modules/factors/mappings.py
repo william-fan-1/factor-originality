@@ -99,6 +99,66 @@ FACTOR_MAPPINGS: dict[str, FactorDefinition] = {
         'func': fcf_to_price,
         'direction': 'high',
     },
+    'assets_to_market': {
+        'column': 'asst_me',
+        'func': assets_to_market,
+        'direction': 'high',
+    },
+    'book_to_mev': {
+        'column': 'be_mev',
+        'func': book_to_mev,
+        'direction': 'high',
+    },
+    'net_stock_issues': {
+        'column': 'nsi_12m',
+        'func': net_stock_issues,
+        'direction': 'low',
+    },
+    'debt_to_market': {
+        'column': 'debt_me',
+        'func': debt_to_market,
+        'direction': 'high',
+    },
+    'dividend_yield': {
+        'column': 'div12m_me',
+        'func': dividend_yield,
+        'direction': 'high',
+    },
+    'ebitda_to_mev': {
+        'column': 'ebitda_mev',
+        'func': ebitda_to_mev,
+        'direction': 'high',
+    },
+    'net_equity_issuance': {
+        'column': 'nei_assts',
+        'func': net_equity_issuance,
+        'direction': 'low',
+    },
+    'equity_net_payout': {
+        'column': 'ne_payout',
+        'func': equity_net_payout,
+        'direction': 'high',
+    },
+    'net_payout_yield': {
+        'column': 'npayout_yld',
+        'func': net_payout_yield,
+        'direction': 'high',
+    },
+    'net_total_issuance': {
+        'column': 'nti_assts',
+        'func': net_total_issuance,
+        'direction': 'low',
+    },
+    'op_cash_flow_to_market': {
+        'column': 'ocf_me',
+        'func': op_cash_flow_to_market,
+        'direction': 'high',
+    },
+    'sales_to_market': {
+        'column': 'sale_me',
+        'func': sales_to_market,
+        'direction': 'high',
+    },
     'gross_profit_margin': {
         'column': 'gp_sales',
         'func': gross_profit_margin,
