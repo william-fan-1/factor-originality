@@ -32,6 +32,9 @@ _QUARTERLY_ITEMS = {
     'ppentq': 'property_plant_equipment',
     'dlttq': 'long_term_debt',
     'dlcq': 'short_term_debt',
+    'req': 'retained_earnings',
+    'pstkq': 'preferred_stock',
+    'mibtq': 'minority_interest',
 }
 
 # Compustat cash-flow items are reported year-to-date within each fiscal year
@@ -41,14 +44,18 @@ _YTD_ITEMS = {
     'dpy': 'depreciation_amortization',
     'sstky': 'stock_issuance',
     'prstkcy': 'stock_repurchases',
+    'dvy': 'dividends',
+    'dltisy': 'debt_issuance',
+    'dltry': 'debt_repayment',
 }
 
 METRICS = [
     'revenue', 'cost_of_goods_sold', 'gross_profit', 'operating_income', 'net_income',
     'total_assets', 'total_liabilities', 'shareholders_equity', 'cash_and_equivalents',
     'current_assets', 'current_liabilities', 'property_plant_equipment', 'long_term_debt',
-    'short_term_debt', 'operating_cash_flow', 'capital_expenditures',
-    'depreciation_amortization', 'stock_issuance', 'stock_repurchases',
+    'short_term_debt', 'retained_earnings', 'preferred_stock', 'minority_interest',
+    'operating_cash_flow', 'capital_expenditures', 'depreciation_amortization',
+    'stock_issuance', 'stock_repurchases', 'dividends', 'debt_issuance', 'debt_repayment',
 ]
 
 
@@ -65,6 +72,10 @@ def load_fundamentals(
     share-class links ``J`` so secondary classes such as DISCK resolve).
 
     All metrics are returned in dollars (Compustat's millions are scaled up).
+    Cash-flow items (including ``dividends``, ``debt_issuance`` and
+    ``debt_repayment``) are discrete quarterly amounts, as positive magnitudes.
+    ``preferred_stock`` and ``minority_interest`` are balance-sheet values and
+    are left null where Compustat reports nothing.
 
     Point-in-time handling:
         ``filing_date`` is the earnings report date (``rdq``) plus one day, since

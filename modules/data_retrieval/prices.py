@@ -30,7 +30,11 @@ def retrieve_prices(
     Returns:
         pd.DataFrame: Daily observations with permno, date, close,
             adjusted_close (total-return index), split_adjusted_close, volume,
-            ret, and shares_outstanding.
+            ret, shares_outstanding, and CRSP's cumulative price
+            (``cfacpr``) and share (``cfacshr``) adjustment factors as
+            ``price_adjustment_factor`` and ``share_adjustment_factor``.
+            ``shares_outstanding * share_adjustment_factor`` is split-comparable
+            across dates.
     """
     if lookback_months < 0:
         raise ValueError('lookback_months must be non-negative')
@@ -47,7 +51,9 @@ def retrieve_prices(
                ABS(d.prc) / d.cfacpr AS split_adjusted_close,
                d.vol                 AS volume,
                d.ret,
-               d.shrout * 1000       AS shares_outstanding
+               d.shrout * 1000       AS shares_outstanding,
+               d.cfacpr              AS price_adjustment_factor,
+               d.cfacshr             AS share_adjustment_factor
         FROM crsp.dsf AS d
         WHERE d.permno IN %(permnos)s
           AND d.date >= %(start)s
@@ -62,11 +68,15 @@ def retrieve_prices(
         date_cols=['date'],
     )
     prices['permno'] = prices['permno'].astype('int64')
-    numeric = ['close', 'split_adjusted_close', 'volume', 'ret', 'shares_outstanding']
+    numeric = [
+        'close', 'split_adjusted_close', 'volume', 'ret', 'shares_outstanding',
+        'price_adjustment_factor', 'share_adjustment_factor',
+    ]
     prices[numeric] = prices[numeric].astype('float64')
     return prices.assign(adjusted_close=_total_return_index(prices))[
         ['permno', 'date', 'close', 'adjusted_close', 'split_adjusted_close',
-         'volume', 'ret', 'shares_outstanding']
+         'volume', 'ret', 'shares_outstanding',
+         'price_adjustment_factor', 'share_adjustment_factor']
     ]
 
 
